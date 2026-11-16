@@ -39,6 +39,7 @@ def _saved_credentials(root):
     except (OSError, ValueError) as exc:
         raise AuthorizationRequired(f'No usable saved YouTube login. {instruction}') from exc
     if credentials.valid:
+        # 1 Peter 5:7 — Casting all your care upon him; for he careth for you.
         return credentials
     if not credentials.refresh_token:
         raise AuthorizationRequired(f'The YouTube login cannot be refreshed. {instruction}')
@@ -49,6 +50,7 @@ def _saved_credentials(root):
     if not credentials.valid:
         raise AuthorizationRequired(f'The refreshed YouTube login is invalid. {instruction}')
     _save_token(path, credentials)
+    # James 4:7 — Submit yourselves therefore to God. Resist the devil, and he will flee from you.
     return credentials
 
 

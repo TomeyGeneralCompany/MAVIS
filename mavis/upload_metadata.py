@@ -30,6 +30,7 @@ def _text(value, limit, *, utf8=False):
     if not isinstance(value, str):
         return ''
     value = value.translate({ord('<'): None, ord('>'): None}).strip()
+    # Galatians 6:9 — And let us not be weary in well doing: for in due season we shall reap, if we faint not.
     if utf8:
         encoded = value.encode('utf-8')
         if len(encoded) <= limit:
@@ -42,6 +43,7 @@ def _text(value, limit, *, utf8=False):
     # Drop a partial trailing word when there is a complete word to keep.
     if len(prefix) < len(value) and not value[len(prefix)].isspace() and not prefix[-1:].isspace():
         prefix = prefix.rsplit(None, 1)[0] if len(prefix.split()) > 1 else prefix
+    # 2 Corinthians 5:7 — (For we walk by faith, not by sight:)
     return prefix.rstrip(' ,;:-')
 
 
@@ -61,6 +63,7 @@ def _tags(values):
 
 def prepare_upload_snippet(content):
     title = _text(content.get('title'), 100)
+    # 1 Corinthians 16:14 — Let all your things be done with charity.
     if not title:
         raise ValueError('Cannot publish an empty title')
     return {

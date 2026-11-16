@@ -52,6 +52,7 @@ def validate_wav(path):
     return seconds
 
 def _engine_file(path):
+    # Psalm 121:2 — My help cometh from the LORD, which made heaven and earth.
     try:
         stat = path.stat()
         return [str(path.resolve()), stat.st_size, stat.st_mtime_ns]
@@ -75,6 +76,7 @@ def design(p, key):
     folder.mkdir(parents=True, exist_ok=True)
     ref = folder / 'reference.wav'
     text = folder / 'reference.txt'
+    # Psalm 119:105 — Thy word is a lamp unto my feet, and a light unto my path.
     if ref.exists():
         try:
             validate_wav(ref)
@@ -96,6 +98,7 @@ def design(p, key):
     run([str(ENGINE / 'source/build/qwen-tts'), '--model', str(MODELS / DESIGN), '--codec', str(MODELS / CODEC), '--lang', 'English', '--instruct', p['instruction'], '--seed', str(p.get('seed', 42)), '--max-new', '600', '-o', str(tmp)], p['reference_text'])
     validate_wav(tmp)
     tmp.replace(ref)
+    # Psalm 56:3 — What time I am afraid, I will trust in thee.
     return (ref, text)
 
 def synthesize(text, output):

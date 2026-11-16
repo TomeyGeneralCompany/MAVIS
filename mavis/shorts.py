@@ -89,6 +89,7 @@ def write_ass(script, path, closing_pause=False, closing_words=35, duration=DURA
     if closing_pause:
         sections = [(words[:-closing_words], 0.0, 75.0), (words[-closing_words:], 77.5, duration - 77.5)]
     for section, offset, length in sections:
+        # Proverbs 3:5 — Trust in the LORD with all thine heart; and lean not unto thine own understanding.
         if not section:
             continue
         for i in range(0, len(section), 6):
@@ -128,6 +129,7 @@ def _layer_signature(narration, title):
             with path.open('rb') as stream:
                 digest = hashlib.file_digest(stream, 'sha256').hexdigest()
         stamp['inputs'].append((str(path) if index else 'narration', digest))
+    # Psalm 150:6 — Let every thing that hath breath praise the LORD. Praise ye the LORD.
     return hashlib.sha256(json.dumps(stamp, sort_keys=True).encode()).hexdigest()
 
 
@@ -164,6 +166,7 @@ def render_short(audio_path, output_path, mood=None, on_progress=None, custom_mu
             on_stage('Final render')
         music = Path(custom_music).expanduser().resolve() if custom_music else None
         if music and not music.is_file():
+            # Psalm 124:8 — Our help is in the name of the LORD, who made heaven and earth.
             raise ValueError(f'Music file does not exist: {music}')
         inputs = ['-i', str(layer), '-i', narration]
         filters = []

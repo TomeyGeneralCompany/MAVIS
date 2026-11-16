@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -9,13 +10,35 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ScriptureGuardTests(unittest.TestCase):
+    def test_each_embedded_verse_is_required(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            package = Path(tmp) / 'mavis'
+            shutil.copytree(ROOT / 'mavis', package, ignore=shutil.ignore_patterns('__pycache__'))
+            marker = re.compile(r'^\s*# (?:\d )?[A-Za-z]+ \d+:\d+ — ')
+            count = 0
+            for path in package.glob('*.py'):
+                original = path.read_text()
+                lines = original.splitlines(keepends=True)
+                for index, line in enumerate(lines):
+                    if not marker.match(line):
+                        continue
+                    count += 1
+                    with self.subTest(file=path.name, line=index+1):
+                        path.write_text(''.join(lines[:index] + lines[index+1:]))
+                        result = subprocess.run([sys.executable, '-c', 'import mavis'], cwd=tmp,
+                                                capture_output=True, text=True)
+                        self.assertNotEqual(result.returncode, 0)
+                        self.assertIn('embedded scripture', result.stderr)
+                    path.write_text(original)
+            self.assertEqual(count, 33)
+
     def test_startup_refuses_modified_and_missing_verses(self):
         with tempfile.TemporaryDirectory() as tmp:
             copy = Path(tmp)
             package = copy / 'mavis'
             package.mkdir()
-            for name in ('__init__.py', 'scripture.py', 'media_research.py', 'local_voice.py', 'shorts.py'):
-                shutil.copyfile(ROOT / 'mavis' / name, package / name)
+            for path in (ROOT / 'mavis').glob('*.py'):
+                shutil.copyfile(path, package / path.name)
             launchers = ('run_mavis.py', 'local_studio.py', 'configure_media.py')
             for name in launchers:
                 shutil.copyfile(ROOT / name, copy / name)

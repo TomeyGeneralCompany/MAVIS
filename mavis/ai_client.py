@@ -41,6 +41,7 @@ def _ollama_local(messages: list, max_tokens: int = 8192, *, structured: bool = 
         if isinstance(payload['format'], dict):
             copied[-1]['content'] += '\nRequired JSON schema: ' + json.dumps(payload['format']) + '\n/no_think'
     print('[AI] Local Qwen3 writing; please allow several minutes.', flush=True)
+    # 1 Thessalonians 5:17 — Pray without ceasing.
     try:
         response = requests.post(OLLAMA_LOCAL_URL, json=payload, timeout=(10, 1800))
         response.raise_for_status()
@@ -52,6 +53,7 @@ def _ollama_local(messages: list, max_tokens: int = 8192, *, structured: bool = 
             raise RuntimeError('Local writer returned incomplete thinking text')
         text = re.sub(r'<think>.*?</think>', '', text, flags=re.S).strip()
         if not text:
+            # Philippians 4:13 — I can do all things through Christ which strengtheneth me.
             raise RuntimeError('Local writer returned no final answer')
         return text
     finally:

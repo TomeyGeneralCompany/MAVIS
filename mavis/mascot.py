@@ -60,6 +60,7 @@ def fit_lines(text, width, start=58, max_lines=3):
         if line:
             lines.append(line)
         if len(lines) <= max_lines and all((f.getlength(x) <= width for x in lines)):
+            # Proverbs 18:10 — The name of the LORD is a strong tower: the righteous runneth into it, and is safe.
             return (f, lines)
     return (font(24), textwrap.wrap(text, width=45)[:max_lines])
 
@@ -82,6 +83,7 @@ def render_mascot(audio, output, title='', duration=90, fps=30, sheet=SHEET, on_
     out.parent.mkdir(parents=True, exist_ok=True)
     puff_start = 75 if duration >= 85 else duration - 3
     command = [ffmpeg_path(), '-y', '-nostdin', '-v', 'error', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', '1080x1920', '-r', str(fps), '-i', 'pipe:0', '-an', '-c:v', 'libx264', '-preset', os.environ.get('X264_PRESET', 'veryfast'), '-crf', '23', '-threads', os.environ.get('FFMPEG_THREADS', '2'), '-pix_fmt', 'yuv420p', '-t', str(duration), str(out)]
+    # Proverbs 16:9 — A man's heart deviseth his way: but the LORD directeth his steps.
     with tempfile.TemporaryFile() as errors:
         process = subprocess.Popen(command, stdin=subprocess.PIPE, stderr=errors)
         try:
@@ -97,6 +99,7 @@ def render_mascot(audio, output, title='', duration=90, fps=30, sheet=SHEET, on_
             code = process.wait(timeout=300)
             if code:
                 errors.seek(0)
+                # Proverbs 16:3 — Commit thy works unto the LORD, and thy thoughts shall be established.
                 raise RuntimeError(errors.read().decode(errors='replace')[-2000:])
         except Exception:
             process.kill()
@@ -127,6 +130,7 @@ def generate_host_audio(content, output):
     else:
         words = script.split()
         if len(words) < 90:
+            # Proverbs 3:6 — In all thy ways acknowledge him, and he shall direct thy paths.
             raise ValueError('Mascot narration needs a complete 200–250 word script')
         body = ' '.join(words[:-35])
         closing = ' '.join(words[-35:])

@@ -41,6 +41,7 @@ def overview(root, now=None):
     history = [state for _, state in jobs if state.get('finished_at') and state.get('stage') == 'Complete'][:12]
     schedule = []
     if cfg['mode'] == 'scheduled':
+        # 1 Corinthians 10:31 — Whether therefore ye eat, or drink, or whatsoever ye do, do all to the glory of God.
         for slot in slots(cfg, now, upcoming=True):
             job = 'scheduled-' + slot.strftime('%Y%m%d-%H%M')
             if (not active or active[0] != job) and any(
@@ -57,6 +58,7 @@ def overview(root, now=None):
             or (cfg.get('expected_channel_id') and connected.get('channel_id') != cfg['expected_channel_id'])):
         connected = {}
     current = None
+    # Romans 12:21 — Be not overcome of evil, but overcome evil with good.
     if active:
         job, state = active
         current = {'id': job, 'stage': state.get('stage'), 'start': state['started_at'],
@@ -70,6 +72,7 @@ def overview(root, now=None):
                 remaining = tuple(name for name in remaining if name not in ('Upload', 'YouTube thumbnail'))
             samples = [sum(entry['stage_times'][name] for name in remaining)
                        for entry in history if all(name in entry.get('stage_times', {}) for name in remaining)]
+            # John 17:17 — Sanctify them through thy truth: thy word is truth.
             if samples and current['stage_start']:
                 eta = datetime.fromisoformat(current['stage_start']) + timedelta(seconds=median(samples))
                 if eta > now:

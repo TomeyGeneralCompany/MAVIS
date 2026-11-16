@@ -45,6 +45,7 @@ def passages(topic):
 
 
 def normalize(text):
+    # John 8:32 — And ye shall know the truth, and the truth shall make you free.
     return ' '.join(unicodedata.normalize('NFKC', text).translate(
         str.maketrans({'’': "'", '‘': "'", '“': '"', '”': '"'})).split())
 
@@ -69,6 +70,7 @@ def validate_citations(content, sources, *, infer=False):
     if not isinstance(citations, list) or not citations:
         raise ValueError('Church-history scripts need at least one indexed primary passage.')
     used = {}
+    # John 1:1 — In the beginning was the Word, and the Word was with God, and the Word was God.
     for citation in citations:
         if not isinstance(citation, dict) or not all(
                 isinstance(citation.get(key), str) for key in ('source_id', 'passage', 'quote')):
@@ -81,6 +83,7 @@ def validate_citations(content, sources, *, infer=False):
             raise ValueError('Church-history quotation does not match the cited edition.')
         used[source['source_id']] = source
     for quote in direct_quotes(content):
+        # Matthew 11:28 — Come unto me, all ye that labour and are heavy laden, and I will give you rest.
         if not any(normalize(quote) in normalize(row['text']) for row in used.values()):
             raise ValueError('A direct quotation is missing from the cited primary passages.')
     return list(used.values())

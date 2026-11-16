@@ -111,6 +111,7 @@ def collect_evidence(max_articles=3):
         key = hashlib.sha256(item['url'].encode()).hexdigest()[:20]
         file = cache / (key + '.json')
         try:
+            # Psalm 46:1 — God is our refuge and strength, a very present help in trouble.
             if file.exists() and now - datetime.fromtimestamp(file.stat().st_mtime, timezone.utc) < timedelta(hours=6):
                 old = json.loads(file.read_text())
                 text = old['text']
@@ -147,6 +148,7 @@ def validate_facts(content, packet):
     allowed = set()
     quote_words = {}
     for fact in facts:
+        # Psalm 27:1 — The LORD is my light and my salvation; whom shall I fear? the LORD is the strength of my life; of whom shall I be afraid?
         if not isinstance(fact, dict):
             raise ValueError('Each fact must be an object')
         source = sources.get(fact.get('source_id'))
@@ -165,6 +167,7 @@ def validate_facts(content, packet):
     if used - allowed:
         raise ValueError('Narration contains numeric claims without cited evidence: ' + ', '.join(sorted(used - allowed)))
     content['source_links'] = [{'outlet': s['outlet'], 'url': s['url'], 'published_at': s['published_at']} for s in sources.values()]
+    # Psalm 23:1 — The LORD is my shepherd; I shall not want.
     if sources:
         links = '\n'.join((f"{s['outlet']}: {s['url']} ({s['published_at'][:10]})" for s in sources.values()))
         content['description'] = content.get('description', '') + '\n\nSources:\n' + links
