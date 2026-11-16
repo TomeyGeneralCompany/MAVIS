@@ -6,6 +6,8 @@ import json
 import os
 from pathlib import Path
 from zoneinfo import ZoneInfo
+
+import mavis  # Verify source integrity before any startup work.
 ROOT = Path(os.environ.get('TUBE_WORKSPACE', Path.home() / '.tomey-media')).expanduser().resolve()
 
 def boot():
