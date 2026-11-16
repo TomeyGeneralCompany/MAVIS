@@ -15,6 +15,7 @@ from urllib.parse import urlsplit
 from urllib.request import ProxyHandler, build_opener
 import webbrowser
 
+from mavis.subscription import SubscriptionRequired, request as subscription_request, require
 from mavis.shorts import atomic_json
 from mavis.upload_metadata import prepare_upload_snippet
 
@@ -69,16 +70,20 @@ class Studio:
                 settings['TUBE_MUSIC_VOLUME'] = str(volume)
                 script = str(data.get('script', '')).strip()
                 title = str(data.get('title', '')).strip()
-                if script and not title:
-                    raise ValueError('Enter a title for the supplied script.')
+                if not title:
+                    raise ValueError('Enter a title or topic.')
                 job = 'studio-' + secrets.token_hex(8)
                 folder = self.runs / job
                 folder.mkdir(parents=True)
                 if script:
                     atomic_json(folder / 'editorial.json', {'title': title, 'script': script})
+                else:
+                    settings['MAVIS_JOB_TOPIC'] = title
                 atomic_json(folder / 'studio.json', settings)
             env = {**os.environ, **settings, 'TUBE_WORKSPACE': str(self.root), 'PYTHONUNBUFFERED': '1'}
-            cmd = [sys.executable, str(SOURCE / 'paul_revere.py'), 'run', '--job-id', job]
+            cmd = [sys.executable, str(SOURCE / 'run_mavis.py'), 'run', '--job-id', job]
+            if settings.get('MAVIS_JOB_TOPIC'):
+                cmd.extend(['--topic', settings['MAVIS_JOB_TOPIC']])
             if (folder / 'editorial.json').is_file():
                 cmd.extend(['--script', str(folder / 'editorial.json')])
             with (folder / 'studio.log').open('ab') as log:
@@ -115,7 +120,7 @@ class Studio:
     def setup(self):
         from mavis.ffmpeg_utils import ffmpeg_path, ffprobe_path
         from mavis.local_voice import BASE, CODEC, DESIGN, ENGINE, MODELS, profile
-        from paul_revere_animation_guard import verify_approved_animation
+        from mavis.animation_guard import verify_approved_animation
 
         def check(fn, ok):
             try:
@@ -178,6 +183,17 @@ def serve(studio, port):
             if path == '/':
                 page = (SOURCE / 'studio.html').read_text().replace('__STUDIO_TOKEN__', key)
                 return self.respond(200, page.encode(), 'text/html; charset=utf-8')
+            if path == '/account/status':
+                if not hmac.compare_digest(self.headers.get('X-Studio-Token', ''), key):
+                    return self.send_error(403)
+                state = subscription_request(studio.root, 'status')
+                return self.json(200, {k: state[k] for k in ('active', 'state')})
+            if path == '/overview':
+                from mavis.production_status import overview
+                try:
+                    return self.json(200, overview(studio.root))
+                except (ValueError, OSError, KeyError) as exc:
+                    return self.json(400, {'error': str(exc)})
             if path == '/setup':
                 return self.json(200, studio.setup())
             match = re.fullmatch(r'/(status|video)/(studio-[a-f0-9]{16})', path)
@@ -201,10 +217,13 @@ def serve(studio, port):
             self.send_error(404)
 
         def do_POST(self):
-            if (not self.valid_host() or self.path != '/jobs'
+            if (not self.valid_host() or self.path not in ('/jobs', '/account/checkout', '/account/portal')
                     or not hmac.compare_digest(self.headers.get('X-Studio-Token', ''), key)):
                 return self.send_error(403)
             try:
+                if self.path.startswith('/account/'):
+                    return self.json(200, subscription_request(studio.root, self.path.rsplit('/', 1)[1]))
+                require(studio.root)
                 size = int(self.headers.get('Content-Length', 0))
                 if not 0 < size <= 100_000:
                     raise ValueError('Invalid job size.')
@@ -212,6 +231,8 @@ def serve(studio, port):
                 if not isinstance(data, dict):
                     raise ValueError('Invalid job.')
                 return self.json(200, {'job': studio.start(data)})
+            except SubscriptionRequired as exc:
+                self.json(402, {'error': str(exc)})
             except (ValueError, TypeError, OSError) as exc:
                 self.json(400, {'error': str(exc)})
 
@@ -226,7 +247,7 @@ def main():
     parser.add_argument('--port', type=int, default=8765)
     parser.add_argument('--no-browser', action='store_true')
     args = parser.parse_args()
-    from paul_revere import ROOT, boot
+    from run_mavis import ROOT, boot
     boot()
     with serve(Studio(ROOT), args.port) as server:
         url = f'http://127.0.0.1:{server.server_port}'

@@ -6,6 +6,8 @@ import json
 import os
 from pathlib import Path
 from zoneinfo import ZoneInfo
+
+import mavis  # Verify source integrity before any startup work.
 ROOT = Path(os.environ.get('TUBE_WORKSPACE', Path.home() / '.tomey-media')).expanduser().resolve()
 
 def boot():
@@ -13,11 +15,10 @@ def boot():
     os.chdir(ROOT)
     from dotenv import load_dotenv
     load_dotenv(ROOT / '.env')
-    os.environ.update(VIDEO_WIDTH='1080', VIDEO_HEIGHT='1920', VIDEO_FPS='30', VIDEO_CODEC='libx264', PAUL_REVERE_PUBLISH_MODE='private', PAUL_REVERE_VIDEO_MODE='mascot')
 
-def config():
-    defaults = {'timezone': 'America/Detroit', 'publish_times': ['18:00'], 'lead_minutes': 180, 'mode': 'private', 'expected_channel': 'Paul Revere Media'}
-    file = ROOT / 'paul_revere.json'
+def config(root=None):
+    defaults = {'timezone': 'America/Detroit', 'publish_times': ['18:00'], 'lead_minutes': 180, 'mode': 'private', 'expected_channel': None, 'topic': ''}
+    file = (ROOT if root is None else root) / 'mavis.json'
     if file.exists():
         defaults.update(json.loads(file.read_text()))
     if defaults['mode'] not in ('private', 'scheduled'):
@@ -31,11 +32,11 @@ def config():
         raise ValueError('At least one publication time is required')
     return defaults
 
-def slots(cfg, now=None):
+def slots(cfg, now=None, *, upcoming=False):
     now = now or datetime.now(timezone.utc)
     local = now.astimezone(ZoneInfo(cfg['timezone']))
     answer = []
-    for offset in (0, 1):
+    for offset in range(8 if upcoming else 2):
         day = local.date() + timedelta(days=offset)
         for clock in sorted(set(cfg['publish_times'])):
             naive = datetime.combine(day, datetime.strptime(clock, '%H:%M').time())
@@ -43,7 +44,8 @@ def slots(cfg, now=None):
             slot = local_slot.astimezone(timezone.utc)
             if slot.astimezone(local_slot.tzinfo).replace(tzinfo=None) != naive:
                 continue
-            if slot - timedelta(minutes=int(cfg['lead_minutes'])) <= now < slot:
+            start = slot - timedelta(minutes=int(cfg['lead_minutes']))
+            if (now < slot if upcoming else start <= now < slot):
                 answer.append(slot)
     return answer
 
@@ -58,34 +60,43 @@ def read_editorial(path):
         raise ValueError('closing_script must be the exact ending of script')
     if closing.strip() and (not 28 <= len(closing.split()) <= 42):
         raise ValueError('closing_script must contain 28–42 words')
-    text = ' '.join([data['title'], data.get('topic', ''), data['script']])
-    import re
-    if not re.search('\\b(trump|maga)\\b', text, re.I):
-        raise ValueError('Paul Revere jobs must concern Trump or MAGA')
     data.setdefault('topic', data['title'])
     data.setdefault('description', data['title'] + ' #Shorts')
-    data.setdefault('tags', ['Trump', 'MAGA', 'Paul Revere Media', 'Shorts'])
+    data.setdefault('tags', [])
     data.setdefault('mood', 'epic')
     return data
 
 def youtube_session(cfg, *, authorize=False):
     from mavis.google_auth import connect_youtube
+    if not cfg.get('expected_channel') and not cfg.get('expected_channel_id'):
+        raise ValueError('Set expected_channel or expected_channel_id in mavis.json before connecting YouTube.')
+
+    verified_title = None
 
     def check_channel(client):
+        nonlocal verified_title
         channels = client.channels().list(part='snippet', mine=True).execute(num_retries=5).get('items', [])
         if len(channels) != 1:
             raise RuntimeError('OAuth did not resolve exactly one channel')
         selected = channels[0]
         expected_id = cfg.get('expected_channel_id')
-        if selected['snippet']['title'] != cfg['expected_channel'] or (expected_id and selected['id'] != expected_id):
-            raise RuntimeError('Connected YouTube channel does not match Paul Revere Media configuration')
+        expected_title = cfg.get('expected_channel')
+        if (expected_title and selected['snippet']['title'] != expected_title) or (expected_id and selected['id'] != expected_id):
+            raise RuntimeError('Connected YouTube channel does not match the configured channel')
+        verified_title = selected['snippet']['title']
         return selected['id']
 
-    return connect_youtube(ROOT, check_channel, authorize=authorize)
+    client, channel_id = connect_youtube(ROOT, check_channel, authorize=authorize)
+    from mavis.shorts import atomic_json
+    atomic_json(ROOT / 'youtube-connection.json', {
+        'channel_id': channel_id, 'channel': verified_title,
+        'verified_at': datetime.now(timezone.utc).isoformat(),
+    })
+    return client, channel_id
 
-def produce(job, cfg, editorial=None, upload=False, publish_at=None, self_test=False):
-    from paul_revere_animation_guard import verify_approved_animation
-    verify_approved_animation()
+def produce(job, cfg, editorial=None, upload=False, publish_at=None, self_test=False, topic=None):
+    from mavis.subscription import require
+    require(ROOT)
     from mavis.shorts import atomic_json, retry, validate_short
     directory = ROOT / 'runs' / job
     directory.mkdir(parents=True, exist_ok=True)
@@ -99,28 +110,69 @@ def produce(job, cfg, editorial=None, upload=False, publish_at=None, self_test=F
         return
     if state.get('upload_started'):
         raise RuntimeError(f'Upload outcome uncertain for {job}. Check YouTube Studio, then use reconcile. Automatic re-upload is blocked to avoid duplicates.')
+    from mavis.production_status import now_text
+    state.pop('error', None)
+    state.update(started_at=now_text(), stage=None, finished_at=None, stage_times={},
+                 job_title=topic or cfg.get('topic'), target_channel=cfg.get('expected_channel'),
+                 upload_requested=upload,
+                 planned_publish_at=publish_at.isoformat() if publish_at else None)
+    from time import monotonic
+    stage_clock = monotonic()
+
+    def stage(name):
+        nonlocal stage_clock
+        if state['stage']:
+            state['stage_times'][state['stage']] = round(monotonic() - stage_clock, 2)
+        state['stage'] = name
+        state['stage_started_at'] = now_text()
+        stage_clock = monotonic()
+        atomic_json(state_path, state)
+
     try:
+        stage('Setup')
+        from mavis.animation_guard import verify_approved_animation
+        verify_approved_animation()
         from mavis.ffmpeg_utils import ffmpeg_path, ffprobe_path
         ffmpeg_path()
         ffprobe_path()
         if 'content' not in state:
+            stage('Script')
             if self_test:
                 content = json.loads((ROOT / 'assets/animation/demo.json').read_text())
             elif editorial:
                 content = read_editorial(editorial)
             else:
                 from mavis.media_research import collect_evidence, write_mascot_content
+                topic = (topic or cfg.get('topic') or '').strip()
+                if not topic:
+                    raise ValueError('Enter a topic or provide a script.')
                 packet = {'sources': []} if os.getenv('TUBE_OFFLINE') == '1' else collect_evidence()
+                from mavis.patristic_sources import GUIDES, is_patristic, passages
+                if is_patristic(topic):
+                    primary = passages(topic)
+                    if not primary:
+                        raise ValueError('No local patristic passages match this topic.')
+                    packet.update(patristic=primary, guides=GUIDES)
                 atomic_json(directory / 'research.json', packet)
-                topic = 'Trump and MAGA accomplishments, patriotic celebration and supporter culture'
                 content = write_mascot_content(topic, packet)
-                content['topic'] = content['title']
+                content['topic'] = topic
             state['content'] = content
             atomic_json(state_path, state)
-        from paul_revere_metadata import enrich
-        state['content'] = enrich(state['content'])
-        atomic_json(state_path, state)
         content = state['content']
+        if not self_test or upload:
+            stage('Editorial review')
+            from mavis.editorial_policy import review
+            from mavis.patristic_sources import attach_sources, is_patristic, passages, validate_citations
+            subject = ' '.join(str(content.get(field, '')) for field in
+                               ('topic', 'title', 'script', 'description', 'thumbnail_phrase'))
+            if is_patristic(subject):
+                lookup = ' '.join(str(content.get(field, '')) for field in ('topic', 'title'))
+                if not is_patristic(lookup):
+                    lookup = subject
+                sources = validate_citations(content, passages(lookup), infer=True)
+                attach_sources(content, sources)
+                atomic_json(state_path, state)
+            review(content)
         audio = directory / ('narration.mp3' if self_test else 'narration.wav')
         legacy_audio = directory / 'narration.mp3'
         if not audio.exists() and state.get('audio_done') and legacy_audio.exists():
@@ -128,6 +180,7 @@ def produce(job, cfg, editorial=None, upload=False, publish_at=None, self_test=F
         if state.get('audio_version') != 'mascot-ready-v4':
             state['audio_done'] = False
         if not state.get('audio_done') or not audio.exists():
+            stage('Narration')
             if self_test:
                 import shutil
                 shutil.copyfile(ROOT / 'assets/animation/demo-narration.mp3', audio)
@@ -137,22 +190,25 @@ def produce(job, cfg, editorial=None, upload=False, publish_at=None, self_test=F
             state['audio_done'] = True
             state['audio_version'] = 'mascot-ready-v4'
             atomic_json(state_path, state)
-        os.environ['PAUL_REVERE_CURRENT_TITLE'] = content['title']
-        os.environ['PAUL_REVERE_CLOSING_WORDS'] = str(len(content.get('closing_script', '').split()) or 35)
+        os.environ['MAVIS_CURRENT_TITLE'] = content['title']
+        os.environ['MAVIS_CLOSING_WORDS'] = str(len(content.get('closing_script', '').split()) or 35)
         video = directory / 'short.mp4'
         if state.get('renderer_version') != 'mascot-approved-cels-20261015-r1':
             state['render_done'] = False
         if not state.get('render_done') or not video.exists():
             from mavis.shorts import render_short
-            info = render_short(str(audio), str(video), custom_music=os.getenv('TUBE_MUSIC_FILE'), captions_text=content['script'] if os.getenv('TUBE_CAPTIONS', '1') == '1' else None)
+            stage('Animation')
+            info = render_short(str(audio), str(video), custom_music=os.getenv('TUBE_MUSIC_FILE'), on_stage=stage, captions_text=content['script'] if os.getenv('TUBE_CAPTIONS', '1') == '1' else None)
             state['render_done'] = True
             state['renderer_version'] = 'mascot-approved-cels-20261015-r1'
             atomic_json(state_path, state)
         else:
+            stage('Validation')
             info = validate_short(video)
         atomic_json(directory / 'validation.json', info)
         thumbnail = directory / 'thumbnail.jpg'
         if not thumbnail.exists() or state.get('cover_version') != 'mascot-approved-cels-20261015-r1':
+            stage('Thumbnail')
             from mavis.mascot import mascot_cover
             mascot_cover(content.get('thumbnail_phrase') or content['title'], str(thumbnail))
             state['cover_version'] = 'mascot-approved-cels-20261015-r1'
@@ -160,6 +216,7 @@ def produce(job, cfg, editorial=None, upload=False, publish_at=None, self_test=F
         if self_test:
             atomic_json(ROOT / 'shorts-validated.json', {'job': job, 'validated_at': datetime.now(timezone.utc).isoformat()})
         if upload:
+            stage('Upload')
             from mavis.youtube_upload import prepare_video_transfer, transfer_video, upload_thumbnail
 
             client, channel_id = retry(lambda: youtube_session(cfg))
@@ -175,15 +232,18 @@ def produce(job, cfg, editorial=None, upload=False, publish_at=None, self_test=F
             atomic_json(state_path, state)
             print(f'Upload complete: https://youtu.be/{video_id}')
             try:
+                stage('YouTube thumbnail')
                 upload_thumbnail(client, video_id, str(thumbnail))
             except Exception as exc:
                 print(f'Video saved; thumbnail upload failed: {exc}')
         state['complete'] = True
         state.pop('error', None)
-        atomic_json(state_path, state)
+        state['finished_at'] = now_text()
+        stage('Complete')
         print('Completed:', video)
     except Exception as exc:
         state['error'] = f'{type(exc).__name__}: {exc}'
+        state['finished_at'] = now_text()
         atomic_json(state_path, state)
         raise
 
@@ -192,6 +252,7 @@ def main():
     sub = parser.add_subparsers(dest='command', required=True)
     run = sub.add_parser('run')
     run.add_argument('--script')
+    run.add_argument('--topic')
     run.add_argument('--upload-private', action='store_true')
     run.add_argument('--job-id')
     test = sub.add_parser('self-test')
@@ -207,11 +268,11 @@ def main():
     boot()
     from mavis.shorts import atomic_json
     cfg = config()
-    with open(ROOT / 'paul-revere.lock', 'a') as lock:
+    with open(ROOT / 'mavis.lock', 'a') as lock:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
-            print('Another Paul Revere job is running')
+            print('Another MAVIS job is running')
             return
         if args.command == 'authorize':
             _, channel_id = youtube_session(cfg, authorize=True)
@@ -228,10 +289,14 @@ def main():
                     private_test = True
             if not private_test:
                 raise RuntimeError('Complete a successful --upload-private test before enabling public scheduling')
-            cfg['mode'] = 'scheduled'
-            atomic_json(ROOT / 'paul_revere.json', cfg)
+            timer = cfg.get('scheduler_timer')
+            if not isinstance(timer, str) or not timer.endswith('.timer') or not timer[0].isalnum() or '/' in timer:
+                raise ValueError('Set scheduler_timer in mavis.json to your installed systemd user timer.')
             import subprocess
-            subprocess.run(['systemctl', '--user', 'enable', '--now', 'paul-revere-shorts.timer'], check=True)
+            subprocess.run(['systemctl', '--user', 'enable', timer], check=True)
+            cfg['mode'] = 'scheduled'
+            atomic_json(ROOT / 'mavis.json', cfg)
+            subprocess.run(['systemctl', '--user', 'start', timer], check=True)
             print('Scheduled publishing enabled for', cfg['publish_times'], cfg['timezone'])
             return
         if args.command == 'reconcile':
@@ -259,7 +324,7 @@ def main():
             job = args.job_id or datetime.now(timezone.utc).strftime('mascot-manual-%Y%m%d-%H%M%S')
             if Path(job).name != job or job in ('.', '..'):
                 raise ValueError('Invalid job ID')
-            produce(job, cfg, args.script, args.upload_private)
+            produce(job, cfg, args.script, args.upload_private, topic=args.topic)
             return
         if cfg['mode'] != 'scheduled':
             print('Scheduling is private/inactive; run enable-scheduling after testing')
@@ -271,6 +336,8 @@ def main():
             checkpoint = ROOT / 'runs' / job / 'checkpoint.json'
             if checkpoint.exists() and json.loads(checkpoint.read_text()).get('complete'):
                 continue
+            from mavis.subscription import require
+            require(ROOT)
             job_path = ROOT / 'runs' / job
             job_path.mkdir(parents=True, exist_ok=True)
             source = job_path / 'editorial.json'

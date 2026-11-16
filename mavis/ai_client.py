@@ -4,7 +4,7 @@ import requests
 OLLAMA_LOCAL_URL = "http://localhost:11434/api/chat"
 
 
-def _ollama_local(messages: list, max_tokens: int = 8192) -> str:
+def _ollama_local(messages: list, max_tokens: int = 8192, *, structured: bool = True, patristic: bool = False) -> str:
     import re, json
     copied = [dict(m) for m in messages]
     if copied:
@@ -13,7 +13,7 @@ def _ollama_local(messages: list, max_tokens: int = 8192) -> str:
                'stream': False, 'think': False, 'keep_alive': 0,
                'options': {'num_ctx': 8192, 'num_predict': min(max_tokens, 4096),
                            'num_thread': 4, 'temperature': 0.6}}
-    if copied and 'json' in copied[-1]['content'].lower():
+    if structured and copied and 'json' in copied[-1]['content'].lower():
         payload['format'] = 'json'
         prompt = copied[-1]['content']
         if 'closing_script' in prompt:
@@ -27,6 +27,11 @@ def _ollama_local(messages: list, max_tokens: int = 8192) -> str:
             props['facts'] = {'type': 'array', 'items': {
                 'type': 'object', 'properties': fact,
                 'required': list(fact), 'additionalProperties': False}}
+            if patristic:
+                citation = {key: {'type': 'string'} for key in ('source_id', 'passage', 'quote')}
+                props['patristic_citations'] = {'type': 'array', 'items': {
+                    'type': 'object', 'properties': citation,
+                    'required': list(citation), 'additionalProperties': False}}
             payload['format'] = {'type': 'object', 'properties': props,
                                  'required': list(props), 'additionalProperties': False}
         elif '"script"' in prompt:
@@ -36,6 +41,7 @@ def _ollama_local(messages: list, max_tokens: int = 8192) -> str:
         if isinstance(payload['format'], dict):
             copied[-1]['content'] += '\nRequired JSON schema: ' + json.dumps(payload['format']) + '\n/no_think'
     print('[AI] Local Qwen3 writing; please allow several minutes.', flush=True)
+    # 1 Thessalonians 5:17 — Pray without ceasing.
     try:
         response = requests.post(OLLAMA_LOCAL_URL, json=payload, timeout=(10, 1800))
         response.raise_for_status()
@@ -47,6 +53,7 @@ def _ollama_local(messages: list, max_tokens: int = 8192) -> str:
             raise RuntimeError('Local writer returned incomplete thinking text')
         text = re.sub(r'<think>.*?</think>', '', text, flags=re.S).strip()
         if not text:
+            # Philippians 4:13 — I can do all things through Christ which strengtheneth me.
             raise RuntimeError('Local writer returned no final answer')
         return text
     finally:
@@ -57,6 +64,6 @@ def _ollama_local(messages: list, max_tokens: int = 8192) -> str:
             pass
 
 
-def chat_ollama(prompt: str, system: str | None = None, max_tokens: int = 8192) -> str:
+def chat_ollama(prompt: str, system: str | None = None, max_tokens: int = 8192, *, structured: bool = True, patristic: bool = False) -> str:
     turns = [('system', system), ('user', prompt)] if system else [('user', prompt)]
-    return _ollama_local([dict(role=role, content=value) for role, value in turns], max_tokens)
+    return _ollama_local([dict(role=role, content=value) for role, value in turns], max_tokens, structured=structured, patristic=patristic)

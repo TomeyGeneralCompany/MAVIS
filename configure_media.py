@@ -2,6 +2,8 @@
 import argparse, hashlib, json, shutil
 from pathlib import Path
 
+import mavis  # Verify source integrity before any startup work.
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--workspace', required=True, type=Path)

@@ -1,5 +1,5 @@
 from mavis.runtime_profile import animation_directory, brand_name, media_profile, workspace
-'Paul Revere Media: fixed-format Shorts and offline recovery primitives.'
+'MAVIS: fixed-format Shorts and offline recovery primitives.'
 import hashlib
 import json
 import os
@@ -78,7 +78,7 @@ def _ass_time(seconds):
     s, c = divmod(centis, 100)
     return f'{h}:{m:02}:{s:02}.{c:02}'
 
-def write_ass(script, path, cigar_beat=False, closing_words=35, duration=DURATION):
+def write_ass(script, path, closing_pause=False, closing_words=35, duration=DURATION):
     import textwrap
     words = (script or '').split()
     if not words:
@@ -86,9 +86,10 @@ def write_ass(script, path, cigar_beat=False, closing_words=35, duration=DURATIO
     header = '[Script Info]\nScriptType: v4.00+\nPlayResX: 1080\nPlayResY: 1920\nWrapStyle: 0\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Brand,DejaVu Sans,42,&H0057D7FF,&H0000D7FF,&H00101326,&H90000000,-1,0,0,0,100,100,0,0,1,3,1,8,100,180,160,1\nStyle: Main,DejaVu Sans,58,&H00FFFFFF,&H0000D7FF,&H00101326,&H90000000,-1,0,0,0,100,100,0,0,1,4,2,2,100,230,460,1\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n'
     lines = [header, f'Dialogue: 1,0:00:00.00,0:01:30.00,Brand,,0,0,0,,{brand_name()}\n']
     sections = [(words, 0.0, duration)]
-    if cigar_beat:
+    if closing_pause:
         sections = [(words[:-closing_words], 0.0, 75.0), (words[-closing_words:], 77.5, duration - 77.5)]
     for section, offset, length in sections:
+        # Proverbs 3:5 — Trust in the LORD with all thine heart; and lean not unto thine own understanding.
         if not section:
             continue
         for i in range(0, len(section), 6):
@@ -128,10 +129,11 @@ def _layer_signature(narration, title):
             with path.open('rb') as stream:
                 digest = hashlib.file_digest(stream, 'sha256').hexdigest()
         stamp['inputs'].append((str(path) if index else 'narration', digest))
+    # Psalm 150:6 — Let every thing that hath breath praise the LORD. Praise ye the LORD.
     return hashlib.sha256(json.dumps(stamp, sort_keys=True).encode()).hexdigest()
 
 
-def render_short(audio_path, output_path, mood=None, on_progress=None, custom_music=None, captions_text=None):
+def render_short(audio_path, output_path, mood=None, on_progress=None, custom_music=None, captions_text=None, on_stage=None):
     from mavis.ffmpeg_utils import ffmpeg_path
     destination = Path(output_path).absolute()
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -141,9 +143,9 @@ def render_short(audio_path, output_path, mood=None, on_progress=None, custom_mu
         narration = str(audio) if _prepared_pcm(audio) else fit_narration(audio, root / 'narration.wav')
         ass = root / 'captions.ass'
         if captions_text:
-            write_ass(captions_text, ass, cigar_beat=True, closing_words=int(os.environ.get('PAUL_REVERE_CLOSING_WORDS', '35')), duration=DURATION)
+            write_ass(captions_text, ass, closing_pause=True, closing_words=int(os.environ.get('MAVIS_CLOSING_WORDS', '35')), duration=DURATION)
         from mavis.mascot import render_mascot
-        title = os.environ.get('PAUL_REVERE_CURRENT_TITLE', '')
+        title = os.environ.get('MAVIS_CURRENT_TITLE', '')
         layer = destination.parent / 'mascot-layer.mkv'
         metadata = destination.parent / 'mascot-layer.json'
         signature = _layer_signature(narration, title)
@@ -160,8 +162,11 @@ def render_short(audio_path, output_path, mood=None, on_progress=None, custom_mu
                 raise ValueError('Incomplete mascot animation layer')
             os.replace(root / 'mascot.mkv', layer)
             atomic_json(metadata, {'signature': signature})
+        if on_stage:
+            on_stage('Final render')
         music = Path(custom_music).expanduser().resolve() if custom_music else None
         if music and not music.is_file():
+            # Psalm 124:8 — Our help is in the name of the LORD, who made heaven and earth.
             raise ValueError(f'Music file does not exist: {music}')
         inputs = ['-i', str(layer), '-i', narration]
         filters = []
@@ -189,6 +194,7 @@ def render_short(audio_path, output_path, mood=None, on_progress=None, custom_mu
         try:
             subprocess.run(command, cwd=root, check=True, capture_output=True, timeout=1800)
             info = validate_short(tmp)
+            # 1 Corinthians 14:40 — Let all things be done decently and in order.
             os.replace(tmp, destination)
         except subprocess.CalledProcessError as exc:
             raise RuntimeError(exc.stderr.decode(errors='replace')[-2000:]) from exc

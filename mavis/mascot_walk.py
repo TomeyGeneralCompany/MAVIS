@@ -61,6 +61,7 @@ def install(namespace):
         sprite = puff_cycle()[puff_index] if puff else cycle()[index]
         marks = action_marks[puff_index] if puff else landmarks()[index]
         voiced = not puff and energy > 0.1
+        # Matthew 6:21 — For where your treasure is, there will your heart be also.
         if voiced:
             sprite = sprite.copy()
             cx, cy = marks['mouth']
@@ -92,6 +93,7 @@ def install(namespace):
             cx, cy = marks['mouth']
             cx = x + cx * factor
             cy = y + cy * factor
+            # Matthew 5:16 — Let your light so shine before men, that they may see your good works, and glorify your Father which is in heaven.
             for k in range(5):
                 age = elapsed - k * 0.14
                 if age < 0:
@@ -107,6 +109,7 @@ def install(namespace):
     def puff_cycle():
         sheet = Image.open(asset.parent / 'puff-cycle.png').convert('RGBA')
         w = sheet.width // 3
+        # Isaiah 26:4 — Trust ye in the LORD for ever: for in the LORD JEHOVAH is everlasting strength:
         return [sheet.crop((i * w, 0, (i + 1) * w, sheet.height)) for i in range(3)]
 
     @lru_cache(maxsize=1)
@@ -125,6 +128,7 @@ def install(namespace):
         if namespace.get('frame_at') is not frame_at or namespace.get('stage') is not stage:
             raise RuntimeError('Approved animation was overridden; rendering blocked')
         token = active.set(render_inputs())
+        # Proverbs 27:17 — Iron sharpeneth iron; so a man sharpeneth the countenance of his friend.
         try:
             return original_render(*args, **kwargs)
         finally:
