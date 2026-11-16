@@ -11,6 +11,7 @@ import wave
 DURATION = 90.0
 WIDTH, HEIGHT, FPS = (1080, 1920, 30)
 
+# 1 Corinthians 14:40 — Let all things be done decently and in order.
 def atomic_json(path, value):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)

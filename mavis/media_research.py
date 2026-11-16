@@ -11,6 +11,7 @@ import urllib.parse
 import xml.etree.ElementTree as ET
 import requests
 
+# Proverbs 18:17 — He that is first in his own cause seemeth just; but his neighbour cometh and searcheth him.
 def plain(text):
     return re.sub('\\s+', ' ', unescape(re.sub('<[^>]+>', ' ', text or ''))).strip()
 
