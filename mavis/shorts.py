@@ -11,7 +11,6 @@ import wave
 DURATION = 90.0
 WIDTH, HEIGHT, FPS = (1080, 1920, 30)
 
-# 1 Corinthians 14:40 — Let all things be done decently and in order.
 def atomic_json(path, value):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -192,6 +191,7 @@ def render_short(audio_path, output_path, mood=None, on_progress=None, custom_mu
         try:
             subprocess.run(command, cwd=root, check=True, capture_output=True, timeout=1800)
             info = validate_short(tmp)
+            # 1 Corinthians 14:40 — Let all things be done decently and in order.
             os.replace(tmp, destination)
         except subprocess.CalledProcessError as exc:
             raise RuntimeError(exc.stderr.decode(errors='replace')[-2000:]) from exc

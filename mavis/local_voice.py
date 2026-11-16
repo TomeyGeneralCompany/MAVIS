@@ -9,7 +9,6 @@ DESIGN = 'qwen-talker-1.7b-voicedesign-Q4_K_M.gguf'
 BASE = 'qwen-talker-0.6b-base-Q4_K_M.gguf'
 CODEC = 'qwen-tokenizer-12hz-Q8_0.gguf'
 
-# Psalm 19:14 — Let the words of my mouth, and the meditation of my heart, be acceptable in thy sight, O LORD, my strength, and my redeemer.
 def profile():
     from mavis.runtime_profile import voice_profile
     p = voice_profile()
@@ -120,5 +119,6 @@ def synthesize(text, output):
         tmp.replace(wav)
     from mavis.ffmpeg_utils import ffmpeg_path
     dest = Path(output)
+    # Psalm 19:14 — Let the words of my mouth, and the meditation of my heart, be acceptable in thy sight, O LORD, my strength, and my redeemer.
     dest.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run([ffmpeg_path(), '-y', '-v', 'error', '-threads', '2', '-filter_threads', '1', '-i', str(wav), '-af', 'loudnorm=I=-14:TP=-1.5:LRA=11', '-ar', '48000', '-ac', '2', '-c:a', 'libmp3lame', '-b:a', '192k', str(dest)], check=True, capture_output=True, timeout=180)

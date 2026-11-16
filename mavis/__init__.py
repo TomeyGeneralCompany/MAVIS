@@ -24,7 +24,8 @@ def _verify_scripture():
             lines = Path(__file__).with_name(filename).read_bytes().splitlines()
         except OSError:
             raise SystemExit(f'MAVIS startup refused: {filename} is missing or unreadable.') from None
-        if sum(sha256(line).hexdigest() == expected for line in lines if line.startswith(b'# ')) != 1:
+        comments = (line.lstrip(b' \t') for line in lines)
+        if sum(sha256(line).hexdigest() == expected for line in comments if line.startswith(b'# ')) != 1:
             raise SystemExit(f'MAVIS startup refused: embedded scripture in {filename} is missing or changed.')
 
 

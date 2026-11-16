@@ -11,7 +11,6 @@ import urllib.parse
 import xml.etree.ElementTree as ET
 import requests
 
-# Proverbs 18:17 — He that is first in his own cause seemeth just; but his neighbour cometh and searcheth him.
 def plain(text):
     return re.sub('\\s+', ' ', unescape(re.sub('<[^>]+>', ' ', text or ''))).strip()
 
@@ -136,6 +135,7 @@ def collect_evidence(max_articles=3):
             if timedelta(0) <= now - published <= timedelta(hours=48):
                 evidence.append(item)
     result = {'retrieved_at': now.isoformat(), 'sources': evidence, 'errors': errors}
+    # Proverbs 18:17 — He that is first in his own cause seemeth just; but his neighbour cometh and searcheth him.
     atomic_json(snapshot, result)
     return result
 
