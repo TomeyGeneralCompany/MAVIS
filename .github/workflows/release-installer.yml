@@ -1,0 +1,40 @@
+name: Publish MAVIS Debian installer
+
+on:
+  push:
+    paths:
+      - '.github/workflows/release-installer.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish-deb:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out current MAVIS
+        uses: actions/checkout@v4
+      - name: Verify source compiles
+        run: python3 -m compileall -q packaging mavis local_studio.py run_mavis.py
+      - name: Build downloadable installer
+        run: |
+          mkdir -p dist
+          python3 packaging/deb.py dist/mavis_0.1.0_all.deb
+          dpkg-deb --info dist/mavis_0.1.0_all.deb
+          dpkg-deb --contents dist/mavis_0.1.0_all.deb | grep 'mavis/activation-public.pem'
+          dpkg-deb --contents dist/mavis_0.1.0_all.deb | grep 'hicolor/128x128/apps/mavis.png'
+          dpkg-deb --ctrl-tarfile dist/mavis_0.1.0_all.deb | tar -tf - | grep postinst
+          sha256sum dist/mavis_0.1.0_all.deb > dist/SHA256SUMS
+      - name: Publish installer for website download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view v0.1.0 >/dev/null 2>&1; then
+            gh release upload v0.1.0 dist/mavis_0.1.0_all.deb dist/SHA256SUMS --clobber
+          else
+            gh release create v0.1.0 dist/mavis_0.1.0_all.deb dist/SHA256SUMS \
+              --target "$GITHUB_SHA" \
+              --title "MAVIS Desktop 0.1.0" \
+              --notes "MAVIS for Ubuntu/Zorin OS. Graphical Debian installer; downloads required runtimes on installation. Signed machine activation is required. Initial setup requires internet access, adequate storage, and administrator permission."
+          fi
