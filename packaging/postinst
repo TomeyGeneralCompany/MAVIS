@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+case "${1:-configure}" in
+  configure)
+    echo "MAVIS: Installing local AI and voice requirements (internet required)."
+    python3 /usr/share/mavis/packaging/provision.py
+    ;;
+esac
+exit 0
