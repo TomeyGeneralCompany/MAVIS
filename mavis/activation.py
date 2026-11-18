@@ -40,6 +40,8 @@ def verify_license(data, device=None, public_key=None):
         key.verify(signature, payload_bytes(payload))
         if payload["device"] != (device if device is not None else machine_code()):
             raise ActivationRequired("This license belongs to a different computer.")
+    except ActivationRequired:
+        raise
     except (ValueError, TypeError, KeyError, InvalidSignature, OSError) as exc:
         raise ActivationRequired("Invalid publisher signature or activation format.") from exc
     return payload
