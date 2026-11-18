@@ -14,4 +14,4 @@ export VOICE_ENGINE_DIR="${VOICE_ENGINE_DIR:-/var/lib/mavis/voice}"
         cp "$source_dir/requirements.txt" "$data/.installed-requirements"
     fi
 ) 9>"$data/.install-lock"
-exec "$data/runtime/bin/python" "$source_dir/local_studio.py" --port 0 "$@"
+exec "$data/runtime/bin/python" "$source_dir/local_studio.py" --port 0 "$@" >>"$data/mavis.log" 2>&1
