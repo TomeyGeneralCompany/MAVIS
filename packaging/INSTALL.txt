@@ -1,9 +1,9 @@
-MAVIS Desktop for Ubuntu / Zorin OS (Debian .deb build)
+MAVIS Desktop for Windows and Ubuntu / Zorin OS
 
-For distributors:
+For Linux distributors (developer-only, not an end-user step):
   python3 packaging/deb.py dist/mavis.deb
 
-For users:
+For Linux users:
   1. Download mavis.deb and open it in your graphical package installer.
   2. Click Install and approve the system's normal installation prompt.
   3. MAVIS's installer automatically provisions FFmpeg, Python, the local
@@ -50,3 +50,32 @@ DAILY VIDEO OUTPUT
   The setting is saved in the user's workspace and read by the scheduler.
   This control changes the frequency but does not turn on automatic scheduling
   or bypass initial YouTube channel and scheduler validation.
+
+WINDOWS DESKTOP INSTALLATION (Windows 10/11 x64)
+  1. Download MAVIS-Setup-0.2.0-Windows.exe and double-click it.
+  2. Approve Windows's administrator permissions and installation prompts.
+  3. The Windows installer adds the MAVIS desktop shortcut and bundles the
+     Linux engine .deb. Its guided first-run setup installs Ubuntu in WSL 2
+     and provisions the production dependencies and AI models inside Ubuntu.
+     WSL installation may require virtualization and a Windows restart.
+     After restarting, click the installed MAVIS desktop icon again to
+     continue setup; no manual WSL or terminal commands are required.
+  4. Click the MAVIS icon to open the browser-based local studio, then
+     activate the computer using a signed license as described above.
+
+Windows currently runs the Linux production engine under WSL; it is NOT a
+native Windows voice renderer. First setup requires internet, many GB of
+disk space, and several large downloads. The Windows installer build and
+script syntax are checked in CI; actual WSL installation on a fresh Windows
+computer must still be validated. Windows may display a SmartScreen warning
+for an unsigned installer. Do not bypass enterprise security policies.
+
+WEBSITE DOWNLOAD LINKS
+  Linux:   mavis_0.2.0_all.deb
+  Windows: MAVIS-Setup-0.2.0-Windows.exe
+  Both are available on the v0.2.0 GitHub Release when published.
+  The download itself cannot silently run any installer: the user must
+  double-click/open the downloaded file and authorize required permissions.
+
+MACOS
+  Not supported in this release.
