@@ -41,3 +41,12 @@ OFFLINE HARDWARE ACTIVATION
   OS reinstall or machine-id changes may require a replacement activation.
   This is a distributor-controlled license lock, not tamper-proof DRM against
   source modification; the publicly available source can be modified.
+
+DAILY VIDEO OUTPUT
+  In the browser dashboard, select Videos per day under Production schedule
+  and click Save schedule. Default: 1 video/day. Maximum: 5 videos/day.
+  MAVIS spaces the selected publication times evenly through the local day
+  relative to the configured primary publication time (6 PM by default).
+  The setting is saved in the user's workspace and read by the scheduler.
+  This control changes the frequency but does not turn on automatic scheduling
+  or bypass initial YouTube channel and scheduler validation.
