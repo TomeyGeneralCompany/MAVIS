@@ -20,9 +20,11 @@ def daily_publication_times(anchor, count):
     """Space 1–5 publications evenly through a local calendar day."""
     hour, minute = map(int, anchor.split(':'))
     first = hour * 60 + minute
-    return sorted(f'{((first + round(i * 1440 / count)) % 1440) // 60):02d}:'
-                  f'{((first + round(i * 1440 / count)) % 1440) % 60):02d}'
-                  for i in range(count))
+    times = []
+    for i in range(count):
+        at = (first + round(i * 1440 / count)) % 1440
+        times.append(f'{at // 60:02d}:{at % 60:02d}')
+    return sorted(times)
 
 
 def config(root=None):
