@@ -28,7 +28,7 @@ def daily_publication_times(anchor, count):
 
 
 def config(root=None):
-    defaults = {'timezone': 'America/Detroit', 'publish_times': ['18:00'], 'videos_per_day': 1, 'lead_minutes': 180, 'mode': 'private', 'expected_channel': None, 'topic': ''}
+    defaults = {'timezone': 'America/Detroit', 'publish_times': ['18:00'], 'publication_anchor': None, 'videos_per_day': 1, 'lead_minutes': 180, 'mode': 'private', 'expected_channel': None, 'topic': ''}
     file = (ROOT if root is None else root) / 'mavis.json'
     if file.exists():
         defaults.update(json.loads(file.read_text()))
@@ -44,7 +44,10 @@ def config(root=None):
     count = defaults['videos_per_day']
     if type(count) is not int or not 1 <= count <= 5:
         raise ValueError('videos_per_day must be an integer from 1 to 5')
-    defaults['publish_times'] = daily_publication_times(defaults['publish_times'][0], count)
+    anchor = defaults['publication_anchor'] or defaults['publish_times'][0]
+    datetime.strptime(anchor, '%H:%M')
+    defaults['publication_anchor'] = anchor
+    defaults['publish_times'] = daily_publication_times(anchor, count)
     return defaults
 
 def slots(cfg, now=None, *, upcoming=False):
