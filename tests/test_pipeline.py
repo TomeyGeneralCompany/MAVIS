@@ -21,6 +21,8 @@ def wav_file(path,seconds):
 
 class PipelineTests(unittest.TestCase):
  def setUp(self):
+    license_guard=patch("mavis.activation.require_activation",return_value={"license_id":"test"})
+    license_guard.start();self.addCleanup(license_guard.stop)
     reviewer=patch("mavis.editorial_policy.review");self.review=reviewer.start();self.addCleanup(reviewer.stop)
     self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name);self.cwd=Path.cwd();os.chdir(self.root)
     self.env=patch.dict(os.environ,{'TUBE_WORKSPACE':str(self.root),'X264_PRESET':'ultrafast','FFMPEG_THREADS':'2'});self.env.start();asset_pack(self.root)
