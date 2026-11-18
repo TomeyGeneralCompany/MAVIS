@@ -226,16 +226,27 @@ def serve(studio, port):
             self.send_error(404)
 
         def do_POST(self):
-            if (not self.valid_host() or self.path not in ('/jobs', '/activation')
+            if (not self.valid_host() or self.path not in ('/jobs', '/activation', '/schedule')
                     or not hmac.compare_digest(self.headers.get('X-Studio-Token', ''), key)):
                 return self.send_error(403)
             try:
-                if self.path == '/jobs':
+                if self.path in ('/jobs', '/schedule'):
                     require_activation(studio.root)
                 size = int(self.headers.get('Content-Length', 0))
                 if not 0 < size <= 100_000:
                     raise ValueError('Invalid job size.')
                 data = json.loads(self.rfile.read(size))
+                if self.path == '/schedule':
+                    if not isinstance(data, dict) or set(data) != {'videos_per_day'}:
+                        raise ValueError('Expected videos_per_day only.')
+                    count = data['videos_per_day']
+                    if type(count) is not int or not 1 <= count <= 5:
+                        raise ValueError('Choose a whole number from 1 to 5.')
+                    from run_mavis import config
+                    cfg = config(studio.root)
+                    cfg['videos_per_day'] = count
+                    atomic_json(studio.root / 'mavis.json', cfg)
+                    return self.json(200, {'videos_per_day': count})
                 if self.path == '/activation':
                     if not isinstance(data, dict) or set(data) != {'license'}:
                         raise ValueError('Expected a signed activation.')

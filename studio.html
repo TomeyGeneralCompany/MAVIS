@@ -25,7 +25,20 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere}video{max-width:100%;max-height:
 <section class="primary"><h2>Current production</h2><dl id="active"><dt>Status</dt><dd>Loading…</dd></dl></section>
 <section class="primary"><h2>YouTube channel</h2><dl id="channel"><dt>Status</dt><dd>Loading…</dd></dl></section>
 </div>
-<section class="schedule"><h2>Production schedule</h2><p id="schedule-state"></p>
+<section class="schedule"><h2>Production schedule</h2>
+<form id="daily-frequency">
+<label for="videos-per-day">Videos per day
+<select id="videos-per-day" name="videos_per_day">
+<option value="1">1 (default)</option>
+<option value="2">2</option>
+<option value="3">3</option>
+<option value="4">4</option>
+<option value="5">5</option>
+</select></label>
+<button type="submit" id="save-frequency">Save schedule</button>
+<span id="frequency-message" role="status"></span>
+</form>
+<p id="schedule-state"></p>
 <table id="schedule-table" hidden><thead><tr><th>Job</th><th>Production start</th><th>Publish time</th><th>Status</th></tr></thead><tbody id="schedule-rows"></tbody></table></section>
 <section><h2>Recent jobs</h2><ul id="recent"><li>Loading…</li></ul></section>
 <section><h2>Local setup</h2><pre id="setup">Checking workspace…</pre></section>
@@ -66,16 +79,45 @@ function clock(value,zone) {
   return value ? new Intl.DateTimeFormat(undefined,{timeZone:zone,month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}).format(new Date(value)) : '—';
 }
 let runnerBusy=false;
+let savingFrequency=false;
+$('daily-frequency').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (savingFrequency) return;
+  const count = Number($('videos-per-day').value);
+  savingFrequency = true;
+  $('save-frequency').disabled = true;
+  $('frequency-message').textContent = 'Saving…';
+  try {
+    const response = await fetch('/schedule', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json', 'X-Studio-Token':'__STUDIO_TOKEN__'},
+      body: JSON.stringify({videos_per_day: count})
+    });
+    const data = await response.json();
+    if (!response.ok) throw Error(data.error || 'Could not save schedule.');
+    $('frequency-message').textContent = 'Saved: ' + data.videos_per_day + ' video' + (data.videos_per_day === 1 ? '' : 's') + ' per day.';
+    await overview();
+  } catch (error) {
+    $('frequency-message').textContent = 'Could not save schedule: ' + error.message;
+  } finally {
+    savingFrequency = false;
+    $('save-frequency').disabled = false;
+  }
+});
 async function overview() {
   try {
     const r=await fetch('/overview'), d=await r.json();
     if (!r.ok) throw Error(d.error);
     const time=v=>clock(v,d.timezone), a=d.active, c=d.connection;
     runnerBusy=d.runner_busy;
+    if (!savingFrequency && document.activeElement !== $('videos-per-day')) {
+      $('videos-per-day').value = String(d.videos_per_day);
+    }
     $('start').disabled=runnerBusy || manualBusy;
     fields($('active'),a ? [['Job',a.title||a.id],['Stage',a.stage||'Starting'],['Channel',a.channel||'Local production'],['Started',time(a.start)],['Stage started',time(a.stage_start)],['Est. finish',a.eta ? time(a.eta) : 'Not available yet'],['Scheduled publish',time(a.publish)]] : [['Status',d.runner_busy?'Runner busy · waiting for job details':'Idle']]);
     fields($('channel'),[['Configured',d.channel||d.channel_id||'None'],['Last verified',c.channel||'No verified connection'],['Channel ID',c.channel_id||'—'],['Verified at',time(c.verified_at)]]);
-    $('schedule-state').textContent=(d.mode==='scheduled'?'Schedule configured':'Automatic scheduling is off')+' · '+d.timezone;
+    $('schedule-state').textContent=(d.mode==='scheduled'?'Automatic publishing configured':'Automatic scheduling is off; this setting will apply when enabled')
+      +' · '+d.videos_per_day+' video'+(d.videos_per_day===1?'':'s')+' per day · '+d.timezone;
     $('schedule-table').hidden=!d.schedule.length;
     $('schedule-rows').replaceChildren(...d.schedule.map(s=>{
       const row=document.createElement('tr');

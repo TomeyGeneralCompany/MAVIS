@@ -36,7 +36,7 @@ with TemporaryDirectory() as directory:
         dest.chmod(mode)
     (root / 'DEBIAN').mkdir(exist_ok=True)
     (root / 'DEBIAN/control').write_text(
-        'Package: mavis\nVersion: 0.1.0\nArchitecture: all\n'
+        'Package: mavis\nVersion: 0.1.1\nArchitecture: all\n'
         'Maintainer: Tomey General Company LLC\n'
         'Depends: python3, python3-venv, ffmpeg, xdg-utils, util-linux, curl, git, cmake, build-essential, ca-certificates\n'
         'Description: MAVIS local video production studio\n')

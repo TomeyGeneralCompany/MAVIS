@@ -16,8 +16,19 @@ def boot():
     from dotenv import load_dotenv
     load_dotenv(ROOT / '.env')
 
+def daily_publication_times(anchor, count):
+    """Space 1–5 publications evenly through a local calendar day."""
+    hour, minute = map(int, anchor.split(':'))
+    first = hour * 60 + minute
+    times = []
+    for i in range(count):
+        at = (first + round(i * 1440 / count)) % 1440
+        times.append(f'{at // 60:02d}:{at % 60:02d}')
+    return sorted(times)
+
+
 def config(root=None):
-    defaults = {'timezone': 'America/Detroit', 'publish_times': ['18:00'], 'lead_minutes': 180, 'mode': 'private', 'expected_channel': None, 'topic': ''}
+    defaults = {'timezone': 'America/Detroit', 'publish_times': ['18:00'], 'publication_anchor': None, 'videos_per_day': 1, 'lead_minutes': 180, 'mode': 'private', 'expected_channel': None, 'topic': ''}
     file = (ROOT if root is None else root) / 'mavis.json'
     if file.exists():
         defaults.update(json.loads(file.read_text()))
@@ -30,6 +41,13 @@ def config(root=None):
         datetime.strptime(value, '%H:%M')
     if not defaults['publish_times']:
         raise ValueError('At least one publication time is required')
+    count = defaults['videos_per_day']
+    if type(count) is not int or not 1 <= count <= 5:
+        raise ValueError('videos_per_day must be an integer from 1 to 5')
+    anchor = defaults['publication_anchor'] or defaults['publish_times'][0]
+    datetime.strptime(anchor, '%H:%M')
+    defaults['publication_anchor'] = anchor
+    defaults['publish_times'] = daily_publication_times(anchor, count)
     return defaults
 
 def slots(cfg, now=None, *, upcoming=False):

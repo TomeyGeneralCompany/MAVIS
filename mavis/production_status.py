@@ -77,7 +77,7 @@ def overview(root, now=None):
                 eta = datetime.fromisoformat(current['stage_start']) + timedelta(seconds=median(samples))
                 if eta > now:
                     current['eta'] = eta.isoformat()
-    return {'timezone': cfg['timezone'], 'mode': cfg['mode'], 'channel': cfg.get('expected_channel'),
+    return {'timezone': cfg['timezone'], 'mode': cfg['mode'], 'videos_per_day': cfg['videos_per_day'], 'channel': cfg.get('expected_channel'),
             'channel_id': cfg.get('expected_channel_id'), 'connection': connected,
             'runner_busy': busy, 'schedule': schedule, 'active': current,
             'recent': [{'id': job, 'title': (state.get('content') or {}).get('title') or state.get('job_title'),
