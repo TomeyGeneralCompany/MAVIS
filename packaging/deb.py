@@ -26,7 +26,7 @@ with TemporaryDirectory() as directory:
     (app / 'subscription.json').write_text(json.dumps({'required': False, 'url': ''}))
     for source, target, mode in (
         ('debian-launch.sh', 'usr/bin/mavis', 0o755),
-        ('icon.svg', 'usr/share/icons/hicolor/scalable/apps/mavis.svg', 0o644),
+        ('icon.png', 'usr/share/icons/hicolor/128x128/apps/mavis.png', 0o644),
         ('mavis.desktop', 'usr/share/applications/mavis.desktop', 0o644),
         ('postinst', 'DEBIAN/postinst', 0o755),
     ):
