@@ -1,25 +1,29 @@
-MAVIS desktop package (Ubuntu / Zorin OS)
+MAVIS Desktop for Ubuntu / Zorin OS (Debian .deb build)
 
-Build: python3 packaging/deb.py /tmp/mavis.deb --billing-url https://billing.example.com
-Install: sudo apt install ./mavis.deb
-Open MAVIS from the desktop menu. On first launch a terminal shows the Python
-dependency installation; the dashboard then opens in your browser.
-The app icon is a replaceable placeholder in packaging/icon.svg.
-Set up your own Ollama, Qwen TTS, animation assets and YouTube channel.
+For distributors:
+  python3 packaging/deb.py dist/mavis.deb
 
-Billing operator setup:
-Deploy billing_service.app:application with a production WSGI server behind
-HTTPS. Persist the SQLite database on a private writable volume. Back it up.
-Set STRIPE_SECRET_KEY, STRIPE_PRICE_ID (recurring), MAVIS_BILLING_PUBLIC_URL
-(the HTTPS base URL also used in the package), and MAVIS_BILLING_DB (path).
-Configure the Stripe customer portal for the product and apply a request rate
-limit at the proxy, especially to POST /checkout. Use Stripe test mode first.
+For users:
+  1. Download mavis.deb and open it in your graphical package installer.
+  2. Click Install and approve the system's normal installation prompt.
+  3. MAVIS's installer automatically provisions FFmpeg, Python, the local
+     Ollama service and qwen3:4b model, and the Qwen voice engine and its
+     checksum-verified models. Internet and several GB of free disk space
+     are necessary for this one-time installation.
+  4. Launch MAVIS from the Applications menu. The first launch automatically
+     creates an isolated Python environment and installs its Python libraries.
+     MAVIS then opens its browser-based local studio.
 
-MAVIS uses a random account key stored at <workspace>/.subscription-key.
-Back it up securely to keep account access across reinstalls or migration.
-This build uses the key as account identity; email login/recovery is not included.
-Every new production job checks Stripe through the billing service. If the
-service is unreachable or the subscription is inactive, new jobs stay locked.
-Existing jobs can finish and existing videos remain accessible. Without a
-billing URL the package stays locked. Do not publish the unconfigured package.
-Development source checkouts run without the package billing requirement.
+No terminal commands or separate AI/model installs are required of end users.
+There is no subscription or billing requirement in this temporary build.
+The original billing code is retained in Git history for later reinstatement.
+
+YouTube publishing still requires the user's own Google/YouTube authorization
+and channel configuration. Channel-specific media and animation assets must be
+provided by the user. No installer can create their Google credentials, channel,
+voice instructions or copyrighted channel assets.
+
+The installer runs third-party network downloads at installation time; it fails
+clearly rather than claiming a working install when provisioning is incomplete.
+A failed download can be retried by rerunning the package installation. Check
+the package-manager logs for error details. The machine must run systemd.

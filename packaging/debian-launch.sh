@@ -5,6 +5,7 @@ data=${XDG_DATA_HOME:-"$HOME/.local/share"}/mavis
 mkdir -p "$data"
 export TUBE_WORKSPACE="${TUBE_WORKSPACE:-$data/workspace}"
 export PIP_DISABLE_PIP_VERSION_CHECK=1
+export VOICE_ENGINE_DIR="${VOICE_ENGINE_DIR:-/var/lib/mavis/voice}"
 (
     flock 9
     if ! cmp -s "$source_dir/requirements.txt" "$data/.installed-requirements" || [ ! -x "$data/runtime/bin/python" ]; then
