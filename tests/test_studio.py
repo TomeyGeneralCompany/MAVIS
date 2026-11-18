@@ -18,6 +18,11 @@ from mavis.upload_metadata import prepare_upload_snippet
 
 
 class StudioTests(unittest.TestCase):
+    def setUp(self):
+        guard = patch('local_studio.require_activation', return_value={'license_id':'test'})
+        guard.start()
+        self.addCleanup(guard.stop)
+
     def test_browser_job_resumes_with_same_local_settings_and_previews(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
