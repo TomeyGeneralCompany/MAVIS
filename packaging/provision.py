@@ -88,7 +88,8 @@ def voice():
     if not binary.is_file():
         if not (source / ".git").is_dir():
             source.parent.mkdir(parents=True, exist_ok=True)
-            command("git", "clone", "--depth", "1", REPO, source)
+            command("git", "clone", "--depth", "1", "--recurse-submodules", REPO, source)
+        command("git", "-C", source, "submodule", "update", "--init", "--recursive")
         command("cmake", "-S", source, "-B", source / "build", "-DCMAKE_BUILD_TYPE=Release")
         command("cmake", "--build", source / "build", "--target", "qwen-tts", "-j", "2")
     if not binary.is_file():
