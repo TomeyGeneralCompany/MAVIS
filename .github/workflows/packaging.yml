@@ -1,0 +1,21 @@
+name: MAVIS packaging checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile Python sources
+        run: python3 -m compileall -q packaging mavis local_studio.py run_mavis.py
+      - name: Offline packaging tests
+        run: python3 -m unittest discover -s tests -p 'test_packaging.py' -v
+      - name: Build Debian package without provisioning external assets
+        run: python3 packaging/deb.py /tmp/mavis.deb
+      - name: Inspect Debian package metadata
+        run: |
+          dpkg-deb --info /tmp/mavis.deb
+          dpkg-deb --contents /tmp/mavis.deb | grep 'packaging/provision.py'
+          dpkg-deb --ctrl-tarfile /tmp/mavis.deb | tar -tf - | grep postinst
