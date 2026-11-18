@@ -10,6 +10,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Compile Python sources
         run: python3 -m compileall -q packaging mavis local_studio.py run_mavis.py
+      - name: Install test crypto backend
+        run: python3 -m pip install 'cryptography>=42,<47'
+      - name: Hardware activation tests
+        run: python3 -m unittest discover -s tests -p 'test_activation.py' -v
       - name: Offline packaging tests
         run: python3 -m unittest discover -s tests -p 'test_packaging.py' -v
       - name: Build Debian package without provisioning external assets
