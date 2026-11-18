@@ -266,6 +266,8 @@ def main():
     rec.add_argument('--retry-upload', action='store_true')
     args = parser.parse_args()
     boot()
+    from mavis.activation import require_activation
+    require_activation(ROOT)
     from mavis.shorts import atomic_json
     cfg = config()
     with open(ROOT / 'mavis.lock', 'a') as lock:
