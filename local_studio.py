@@ -15,6 +15,8 @@ from urllib.parse import urlsplit
 from urllib.request import ProxyHandler, build_opener
 import webbrowser
 
+from mavis.activation import ActivationRequired, machine_code, require_activation, install_activation
+from mavis.activation_page import HTML as ACTIVATION_HTML
 from mavis.shorts import atomic_json
 from mavis.upload_metadata import prepare_upload_snippet
 
@@ -39,6 +41,7 @@ class Studio:
         return folder
 
     def start(self, data):
+        require_activation(self.root)
         with self.lock:
             if self.process and self.process.poll() is None:
                 raise ValueError('A local production job is already running.')
@@ -180,8 +183,20 @@ def serve(studio, port):
                 return self.send_error(403)
             path = urlsplit(self.path).path
             if path == '/':
+                try:
+                    require_activation(studio.root)
+                except ActivationRequired:
+                    try:
+                        page = ACTIVATION_HTML.replace('__DEVICE__', machine_code()).replace('__STUDIO_TOKEN__', key)
+                        return self.respond(200, page.encode(), 'text/html; charset=utf-8')
+                    except ActivationRequired as exc:
+                        return self.json(503, {'error': str(exc)})
                 page = (SOURCE / 'studio.html').read_text().replace('__STUDIO_TOKEN__', key)
                 return self.respond(200, page.encode(), 'text/html; charset=utf-8')
+            try:
+                require_activation(studio.root)
+            except ActivationRequired:
+                return self.json(403, {'error': 'MAVIS is not activated for this computer.'})
             if path == '/overview':
                 from mavis.production_status import overview
                 try:
@@ -211,17 +226,26 @@ def serve(studio, port):
             self.send_error(404)
 
         def do_POST(self):
-            if (not self.valid_host() or self.path != '/jobs'
+            if (not self.valid_host() or self.path not in ('/jobs', '/activation')
                     or not hmac.compare_digest(self.headers.get('X-Studio-Token', ''), key)):
                 return self.send_error(403)
             try:
+                if self.path == '/jobs':
+                    require_activation(studio.root)
                 size = int(self.headers.get('Content-Length', 0))
                 if not 0 < size <= 100_000:
                     raise ValueError('Invalid job size.')
                 data = json.loads(self.rfile.read(size))
+                if self.path == '/activation':
+                    if not isinstance(data, dict) or set(data) != {'license'}:
+                        raise ValueError('Expected a signed activation.')
+                    install_activation(studio.root, data['license'])
+                    return self.json(200, {'active': True})
                 if not isinstance(data, dict):
                     raise ValueError('Invalid job.')
                 return self.json(200, {'job': studio.start(data)})
+            except ActivationRequired as exc:
+                self.json(403, {'error': str(exc)})
             except (ValueError, TypeError, OSError) as exc:
                 self.json(400, {'error': str(exc)})
 

@@ -27,3 +27,17 @@ The installer runs third-party network downloads at installation time; it fails
 clearly rather than claiming a working install when provisioning is incomplete.
 A failed download can be retried by rerunning the package installation. Check
 the package-manager logs for error details. The machine must run systemd.
+
+OFFLINE HARDWARE ACTIVATION
+  MAVIS launches its browser activation screen on an unlicensed computer.
+  The user copies the displayed device code to the software publisher.
+  The publisher issues a signed JSON license with the offline command:
+    python3 packaging/issue_activation.py --private-key /secure/mavis-activation-private.pem --device DEVICE_CODE --output activation.json
+  The user pastes the returned JSON into MAVIS's activation screen.
+  The license remains usable offline on that computer, without payments or a
+  remote licensing server. Copying the install or workspace to a computer with
+  a different machine-id will not validate the same license.
+  IMPORTANT: Store the private signing key securely, NEVER commit it to GitHub.
+  OS reinstall or machine-id changes may require a replacement activation.
+  This is a distributor-controlled license lock, not tamper-proof DRM against
+  source modification; the publicly available source can be modified.
