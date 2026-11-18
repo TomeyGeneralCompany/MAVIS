@@ -34,7 +34,7 @@ with TemporaryDirectory() as directory:
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(ROOT / 'packaging' / source, dest)
         dest.chmod(mode)
-    (root / 'DEBIAN').mkdir()
+    (root / 'DEBIAN').mkdir(exist_ok=True)
     (root / 'DEBIAN/control').write_text(
         'Package: mavis\nVersion: 0.1.0\nArchitecture: all\n'
         'Maintainer: Tomey General Company LLC\n'
