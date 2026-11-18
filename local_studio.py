@@ -15,7 +15,6 @@ from urllib.parse import urlsplit
 from urllib.request import ProxyHandler, build_opener
 import webbrowser
 
-from mavis.subscription import SubscriptionRequired, request as subscription_request, require
 from mavis.shorts import atomic_json
 from mavis.upload_metadata import prepare_upload_snippet
 
@@ -183,11 +182,6 @@ def serve(studio, port):
             if path == '/':
                 page = (SOURCE / 'studio.html').read_text().replace('__STUDIO_TOKEN__', key)
                 return self.respond(200, page.encode(), 'text/html; charset=utf-8')
-            if path == '/account/status':
-                if not hmac.compare_digest(self.headers.get('X-Studio-Token', ''), key):
-                    return self.send_error(403)
-                state = subscription_request(studio.root, 'status')
-                return self.json(200, {k: state[k] for k in ('active', 'state')})
             if path == '/overview':
                 from mavis.production_status import overview
                 try:
@@ -217,13 +211,10 @@ def serve(studio, port):
             self.send_error(404)
 
         def do_POST(self):
-            if (not self.valid_host() or self.path not in ('/jobs', '/account/checkout', '/account/portal')
+            if (not self.valid_host() or self.path != '/jobs'
                     or not hmac.compare_digest(self.headers.get('X-Studio-Token', ''), key)):
                 return self.send_error(403)
             try:
-                if self.path.startswith('/account/'):
-                    return self.json(200, subscription_request(studio.root, self.path.rsplit('/', 1)[1]))
-                require(studio.root)
                 size = int(self.headers.get('Content-Length', 0))
                 if not 0 < size <= 100_000:
                     raise ValueError('Invalid job size.')
@@ -231,8 +222,6 @@ def serve(studio, port):
                 if not isinstance(data, dict):
                     raise ValueError('Invalid job.')
                 return self.json(200, {'job': studio.start(data)})
-            except SubscriptionRequired as exc:
-                self.json(402, {'error': str(exc)})
             except (ValueError, TypeError, OSError) as exc:
                 self.json(400, {'error': str(exc)})
 
