@@ -1,0 +1,2 @@
+# Optional music importer; install with the Python environment used by MAVIS.
+yt-dlp[default]>=2025.1.26

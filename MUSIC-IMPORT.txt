@@ -1,0 +1,30 @@
+MAVIS music importer
+
+The WGM catalog/import pattern is now available as a separate MAVIS command.
+From your MAVIS checkout, using its Python environment:
+
+python -m pip install -r requirements-music.txt
+python fetch_music.py 'https://www.youtube.com/watch?v=Y9YCykJUQ7E'
+python fetch_music.py --status
+
+For a channel's /videos URL or a playlist, add --collection --limit 10.
+The limit counts entries examined per URL, including already-downloaded ones.
+Increase it when you want to reach older entries.
+
+--root PATH selects the MAVIS workspace. The default uses TUBE_WORKSPACE, or
+~/.local/share/mavis/workspace. Use the same workspace as your personal MAVIS.
+FFmpeg and FFprobe must be available through MAVIS's normal configuration.
+For YouTube JavaScript challenges, install Deno or Node.js 22 or newer; the
+importer enables Node automatically when present.
+
+Audio goes into music/sources as M4A files, keyed by YouTube video ID.
+Original title, channel, source URL, description and chapter timestamps remain
+in the source JSON and music/catalog.sqlite3. A compilation stays one source;
+chapters are preserved for later splitting instead of inventing track names.
+Repeated runs skip archived videos and resume partial downloads. Unavailable
+videos do not prevent other entries from downloading. The command returns a
+nonzero status for downloader errors while cataloging successful downloads.
+--status also recovers finished downloads after an interrupted catalog update.
+
+This imports music only. It does not post to a channel or start a livestream. The existing production pipeline and website
+installers are unchanged.
