@@ -30,9 +30,15 @@ def main():
             common.download('https://ollama.com/download/OllamaSetup.exe', installer)
             # Use an environment variable, never interpolate paths into PowerShell code.
             import os
-            verify = "$s = Get-AuthenticodeSignature -LiteralPath $env:MAVIS_INSTALLER; if ($s.Status -ne 'Valid') { exit 1 }"
-            subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', verify],
-                           env={**os.environ, 'MAVIS_INSTALLER': str(installer)}, check=True)
+            verify = ("$ErrorActionPreference = 'Stop'; "
+                      "Import-Module (Join-Path $PSHOME 'Modules/Microsoft.PowerShell.Security'); "
+                      "$s = Get-AuthenticodeSignature -LiteralPath $env:MAVIS_INSTALLER; "
+                      "if ($s.Status -ne 'Valid') { throw 'Installer signature is invalid' }")
+            verify_env = {k: v for k, v in os.environ.items() if k.lower() != 'psmodulepath'}
+            verify_env['MAVIS_INSTALLER'] = str(installer)
+            powershell = Path(os.environ['SystemRoot']) / 'System32/WindowsPowerShell/v1.0/powershell.exe'
+            subprocess.run([str(powershell), '-NoProfile', '-NonInteractive', '-Command', verify],
+                           env=verify_env, check=True)
             subprocess.run([str(installer), '/VERYSILENT', '/NORESTART', '/SUPPRESSMSGBOXES'], check=True)
         if not Path(ollama).is_file():
             raise RuntimeError('Ollama installation failed. Run MAVIS Setup again.')
