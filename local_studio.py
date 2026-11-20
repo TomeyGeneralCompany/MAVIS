@@ -31,6 +31,8 @@ class Studio:
         self.lock = threading.Lock()
         self.process = None
         self.active = None
+        from mavis.livestream import LiveSession
+        self.live = LiveSession(root)
 
     def folder(self, job):
         if not JOB.fullmatch(job):
@@ -198,6 +200,8 @@ def serve(studio, port):
                 require_activation(studio.root)
             except ActivationRequired:
                 return self.json(403, {'error': 'MAVIS is not activated for this computer.'})
+            if path == '/live':
+                return self.json(200, studio.live.status())
             if path == '/overview':
                 from mavis.production_status import overview
                 try:
@@ -227,16 +231,21 @@ def serve(studio, port):
             self.send_error(404)
 
         def do_POST(self):
-            if (not self.valid_host() or self.path not in ('/jobs', '/activation', '/schedule')
+            if (not self.valid_host() or self.path not in ('/jobs', '/activation', '/schedule', '/live/start', '/live/stop')
                     or not hmac.compare_digest(self.headers.get('X-Studio-Token', ''), key)):
                 return self.send_error(403)
             try:
-                if self.path in ('/jobs', '/schedule'):
+                if self.path != '/activation':
                     require_activation(studio.root)
                 size = int(self.headers.get('Content-Length', 0))
                 if not 0 < size <= 100_000:
                     raise ValueError('Invalid job size.')
                 data = json.loads(self.rfile.read(size))
+                if self.path in ('/live/start', '/live/stop'):
+                    if not isinstance(data, dict):
+                        raise ValueError('Expected livestream settings.')
+                    result = studio.live.start(data) if self.path == '/live/start' else studio.live.stop()
+                    return self.json(200, result)
                 if self.path == '/schedule':
                     if not isinstance(data, dict) or set(data) != {'videos_per_day'}:
                         raise ValueError('Expected videos_per_day only.')
@@ -274,12 +283,16 @@ def main():
     args = parser.parse_args()
     from run_mavis import ROOT, boot
     boot()
-    with serve(Studio(ROOT), args.port) as server:
+    studio = Studio(ROOT)
+    with serve(studio, args.port) as server:
         url = f'http://127.0.0.1:{server.server_port}'
         print(url, flush=True)
         if not args.no_browser:
             webbrowser.open(url)
-        server.serve_forever()
+        try:
+            server.serve_forever()
+        finally:
+            studio.live.stop()
 
 
 if __name__ == '__main__':

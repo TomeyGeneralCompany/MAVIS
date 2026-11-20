@@ -14,7 +14,7 @@ section,form{background:var(--surface);color:#fff;--ink:#fff;--muted:#fff;--bord
 .primary{border-top:4px solid var(--teal)} .schedule{border-top:4px solid var(--teal)}
 dl{display:grid;grid-template-columns:auto 1fr;gap:9px 16px;margin:0}dt,th{color:var(--muted)}dd{margin:0;overflow-wrap:anywhere}
 table{width:100%;text-align:left;border-collapse:collapse}th,td{padding:8px;border-bottom:1px solid var(--border)}
-label{display:block;margin:12px 0}input:not([type=checkbox]),textarea{width:100%;padding:9px;background:#a7071e;color:#fff;border:1px solid var(--border);border-radius:4px}
+label{display:block;margin:12px 0}input:not([type=checkbox]),textarea,select{width:100%;padding:9px;background:#a7071e;color:#fff;border:1px solid var(--border);border-radius:4px}
 button{padding:9px 15px;background:var(--red);color:#fff;border:0;border-radius:4px;font-weight:bold}button:disabled{opacity:.5}
 pre{white-space:pre-wrap;overflow-wrap:anywhere}video{max-width:100%;max-height:480px}a{color:var(--ink);text-decoration-color:var(--teal)}summary{cursor:pointer} [hidden]{display:none!important}
 
@@ -62,6 +62,24 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere}video{max-width:100%;max-height:
 <details id="metadata-panel" hidden><summary>YouTube metadata preview</summary><pre id="metadata"></pre></details>
 <pre id="log"></pre><video id="preview" controls hidden></video>
 <p><a id="download" hidden download="short.mp4">Download video</a></p></section>
+<section id="live-panel">
+<h2>Personal livestream</h2>
+<form id="live-form">
+<label>Channel label <input name="channel" placeholder="Your channel name"></label>
+<label>Stream server <input name="server" required placeholder="Paste the RTMPS server URL from your channel"></label>
+<label>Stream key <input name="key" type="password" autocomplete="off" required></label>
+<p>The stream key selects the destination channel. It is kept in memory for this session.</p>
+<label>Programme topics, one per line <textarea name="topics" rows="3" required></textarea></label>
+<label>Starting buffer (90-second segments) <input name="buffer" type="number" value="2" min="1" max="10" required></label>
+<label>Layout <select name="layout"><option value="landscape">Landscape · 1280 × 720</option><option value="portrait">Portrait · 720 × 1280</option></select></label>
+<label><input name="research" type="checkbox" checked> Use configured internet sources</label>
+<p>MAVIS generates ahead of playback. When generation takes longer than playback, it replays recent segments to keep the programme on air. Completed segments stay in your runs folder.</p>
+<button type="submit" id="live-start">Start livestream</button>
+<button type="button" id="live-stop">Stop livestream</button>
+</form>
+<pre id="live-state">Stopped</pre>
+<p id="live-message" role="status"></p>
+</section>
 </main>
 <script>
 const $ = id => document.getElementById(id);
@@ -182,5 +200,52 @@ $('form').onsubmit=e=>{
 };
 $('resume').onclick=()=>start({resume:job}).catch(report);
 if(job)status().catch(report);
+
+async function liveStatus() {
+  const response = await fetch('/live');
+  const s = await response.json();
+  if (!response.ok) throw Error(s.error || 'Unable to read livestream status.');
+  $('live-start').disabled = s.running;
+  $('live-stop').disabled = !s.running;
+  $('live-state').textContent = [
+    'State: ' + s.state, 'Channel: ' + (s.channel || 'Stream-key destination'),
+    'Ready: ' + s.queue + ' / starting buffer ' + (s.buffer_target || '—'),
+    'Producing: ' + (s.production_topic || s.producing || '—'), 'Production stage: ' + (s.production_stage || '—'),
+    'On air: ' + (s.on_air_title || s.on_air || '—'), 'Generated: ' + s.generated,
+    'Played: ' + s.played + ' · buffer replays: ' + s.repeats,
+    s.error ? 'Last error: ' + s.error : ''
+  ].filter(Boolean).join('\n');
+}
+async function livePost(path, data) {
+  const response = await fetch(path, {method: 'POST', headers: {
+    'Content-Type': 'application/json', 'X-Studio-Token':'__STUDIO_TOKEN__'
+  }, body: JSON.stringify(data)});
+  const result = await response.json();
+  if (!response.ok) throw Error(result.error || 'Livestream request failed.');
+  await liveStatus();
+}
+$('live-form').onsubmit = async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const data = Object.fromEntries(new FormData(form));
+  data.buffer = Number(data.buffer);
+  data.research = form.elements.research.checked;
+  $('live-start').disabled = true;
+  try {
+    await livePost('/live/start', data);
+    form.elements.key.value = '';
+    $('live-message').textContent = 'Preparing the buffer. Broadcasting starts when it is ready.';
+  } catch (error) {
+    $('live-message').textContent = error.message;
+    $('live-start').disabled = false;
+  }
+};
+$('live-stop').onclick = async () => {
+  $('live-stop').disabled = true;
+  try { await livePost('/live/stop', {}); $('live-message').textContent = 'Livestream stopped.'; }
+  catch (error) { $('live-message').textContent = error.message; }
+};
+liveStatus().catch(error => { $('live-message').textContent = error.message; });
+setInterval(() => liveStatus().catch(error => { $('live-message').textContent = error.message; }), 3000);
 </script>
 </html>

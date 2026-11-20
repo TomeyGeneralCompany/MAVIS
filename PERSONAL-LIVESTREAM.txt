@@ -1,0 +1,32 @@
+Personal MAVIS livestream
+
+Use the personal-livestream branch. On an existing Linux MAVIS installation,
+run: sh personal-launch.sh
+This launches this source copy against your existing MAVIS workspace and voice
+runtime. It does not install files over the published app.
+
+In Personal livestream, enter the server URL and stream key supplied by your
+streaming platform, a channel label, topics, buffer size and layout. Click
+Start livestream. MAVIS writes and reviews each segment, generates its local
+voice and animation, then queues the validated result. It connects to the
+stream server once the starting buffer is full. Enable auto-start on your
+platform or use its Go Live control when the incoming signal appears.
+
+The stream uses 720p H.264/AAC with a two-second keyframe interval. A single
+broadcast connection stays open between segments; segment timestamps advance
+continuously. Landscape and portrait layouts preserve the whole source image.
+
+Generation is sequential. During slow generation or a retry, recent finished
+segments replay so the stream can continue. The panel shows the production
+stage, buffer, on-air segment, counts, replays and last error. Network failures
+reconnect automatically. Stop livestream stops this session's production and
+broadcast processes. Closing the browser tab leaves the local app running;
+stop the stream before quitting the app. Quit the local server to stop both.
+
+Your stream key stays in memory and is never stored in settings or returned
+by the status endpoint. Completed segments are kept in your runs folder.
+Generation pauses when less than 1 GiB of disk space remains. Your existing
+activation, editorial review, source checks and approved-artwork checks apply.
+
+Keep website installers separate. This branch has no automatic release job
+and needs no replacement of either website download.
