@@ -11,7 +11,7 @@ from mavis.activation import machine_code, ActivationRequired
 
 class WindowsPlatformTests(unittest.TestCase):
     def test_windows_default_paths_and_override(self):
-        with patch.object(platform, 'WINDOWS', True), patch.dict(os.environ, {'LOCALAPPDATA': str(Path.home() / 'AppData/Local')}, clear=True):
+        with patch.object(platform, 'WINDOWS', True), patch.dict(os.environ, {'LOCALAPPDATA': str(Path.home() / 'AppData/Local')}):
             self.assertEqual(platform.workspace(), (Path.home() / 'AppData/Local/MAVIS/data').resolve())
             self.assertEqual(platform.voice_binary().name, 'qwen-tts.exe')
             with patch.dict(os.environ, {'TUBE_WORKSPACE': str(Path.home() / 'custom')}):

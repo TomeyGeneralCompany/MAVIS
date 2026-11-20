@@ -7,7 +7,7 @@ import sys
 WINDOWS = sys.platform == 'win32'
 
 def workspace():
-    default = Path(os.environ.get('LOCALAPPDATA', Path.home())) / 'MAVIS' / 'data' if WINDOWS else Path.home() / '.tomey-media'
+    default = Path(os.environ.get('LOCALAPPDATA') or Path.home()) / 'MAVIS' / 'data' if WINDOWS else Path.home() / '.tomey-media'
     return Path(os.environ.get('TUBE_WORKSPACE', default)).expanduser().resolve()
 
 def voice_engine():
