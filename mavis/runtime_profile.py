@@ -2,8 +2,7 @@
 import json, os
 from pathlib import Path
 
-def workspace():
-    return Path(os.environ.get('TUBE_WORKSPACE', Path.home() / '.tomey-media')).expanduser().resolve()
+from mavis.platform_support import workspace
 
 def media_profile():
     path = Path(os.environ.get('MEDIA_PROFILE', workspace() / 'media-profile.json')).expanduser()

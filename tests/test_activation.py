@@ -1,3 +1,4 @@
+import os
 """Offline cryptographic, tampering and machine binding tests."""
 import base64
 import json
@@ -42,4 +43,5 @@ class ActivationTests(unittest.TestCase):
                 require_activation(self.root)
             install_activation(self.root,self.license)
             self.assertEqual(require_activation(self.root),self.payload)
-            self.assertEqual((self.root/"activation.json").stat().st_mode & 0o777,0o600)
+            if os.name != 'nt':
+                self.assertEqual((self.root/"activation.json").stat().st_mode & 0o777,0o600)

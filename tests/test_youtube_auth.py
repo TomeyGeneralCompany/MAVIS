@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 import sys
 import tempfile
@@ -41,7 +42,8 @@ class YouTubeAuthTests(unittest.TestCase):
         self.assertEqual(run_mavis.youtube_session(self.cfg)[1], 'correct')
         self.saved.refresh.assert_called_once()
         self.assertEqual(self.token.read_text(), 'refreshed')
-        self.assertEqual(self.token.stat().st_mode & 0o777, 0o600)
+        if os.name != 'nt':
+            self.assertEqual(self.token.stat().st_mode & 0o777, 0o600)
 
     def test_unattended_rejected_refresh_never_opens_browser(self):
         self.saved.valid = False

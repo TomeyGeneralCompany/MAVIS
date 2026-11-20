@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-import fcntl
+from mavis.platform_support import lock_file
 import json
 from pathlib import Path
 import tempfile
@@ -31,8 +31,8 @@ class ProductionStatusTests(unittest.TestCase):
                 'stage': 'Complete', 'stage_times': {'Upload': 65, 'YouTube thumbnail': 5},
             })
             now = datetime.fromisoformat(stamp)
-            with (root / 'mavis.lock').open('wb') as lock:
-                fcntl.flock(lock, fcntl.LOCK_EX)
+            with (root / 'mavis.lock').open('a+b') as lock:
+                lock_file(lock)
                 result = overview(root, now)
             self.assertEqual(result['active']['stage'], 'Upload')
             self.assertEqual(result['active']['eta'], '2026-11-12T21:01:10+00:00')

@@ -1,0 +1,27 @@
+MAVIS for Windows 10/11 (64-bit)
+
+Build: run packaging/windows/build.ps1 on Windows with Python 3.12, Git,
+Visual Studio C++ build tools, CMake and Inno Setup 6 installed. The Windows
+GitHub Actions workflow builds MAVIS-Windows-Setup.exe and its SHA-256 file.
+The installer includes Python, its packages, FFmpeg/FFprobe and the native
+CPU Qwen voice executable. No WSL or Linux installation is used.
+
+Install MAVIS-Windows-Setup.exe. Start menu shortcuts: MAVIS and MAVIS Setup.
+Run MAVIS Setup to install Ollama if needed and download the local writer
+and checksum-verified voice models. The Ollama installer signature is verified. Setup needs internet and substantial
+free disk space. If a download fails, run MAVIS Setup again.
+
+User data: %LOCALAPPDATA%\MAVIS\data
+Voice runtime and models: %LOCALAPPDATA%\MAVIS\voice
+Application: %LOCALAPPDATA%\Programs\MAVIS
+Select your own channel credentials, media assets and voice profile, then
+activate this Windows installation. Existing Linux activation is machine-bound.
+No publisher API keys, customer workspace, or personal artwork is bundled.
+
+Enable scheduling after the existing validation and private-upload checks.
+The MAVIS Production task checks every five minutes while the user is logged
+in. Windows must be awake; missed publication deadlines are not backfilled.
+Uninstalling removes the task and app; your workspace and models are retained.
+
+The existing app icon is used. A replacement MAVIS mascot/icon can be added
+later without changing the pipeline.

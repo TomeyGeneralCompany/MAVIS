@@ -13,7 +13,20 @@ MACHINE_ID = Path("/etc/machine-id")
 class ActivationRequired(PermissionError):
     pass
 
-def machine_code(machine_file=MACHINE_ID):
+def machine_code(machine_file=None):
+    if machine_file is None and os.name == 'nt':
+        import winreg
+        try:
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r'SOFTWARE\Microsoft\Cryptography',
+                                0, winreg.KEY_READ | winreg.KEY_WOW64_64KEY) as key:
+                value = winreg.QueryValueEx(key, 'MachineGuid')[0]
+            value = str(value).replace('-', '').lower()
+            if len(value) != 32 or any(c not in '0123456789abcdef' for c in value):
+                raise ValueError('Invalid Windows MachineGuid')
+            return hashlib.sha256(('mavis-device-v1:' + value).encode()).hexdigest()
+        except (OSError, ValueError) as exc:
+            raise ActivationRequired('Windows machine identifier unavailable.') from exc
+    machine_file = MACHINE_ID if machine_file is None else machine_file
     try:
         value = Path(machine_file).read_text(encoding="ascii").strip().lower()
     except OSError as exc:

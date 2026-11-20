@@ -23,6 +23,11 @@ class LocalWriterTests(unittest.TestCase):
         self.assertIn('closing_script', payload['format']['required'])
         self.assertIn('facts', payload['format']['required'])
         self.assertIn('language', payload['format']['required'])
+        # The real Windows failure was an 84-word summary despite the prompt.
+        short_draft = ' '.join(['garden'] * 84)
+        script_schema = payload['format']['properties']['script']
+        self.assertLess(len(short_draft), script_schema['minLength'])
+        self.assertLess(script_schema['minLength'], script_schema['maxLength'])
         self.assertIn('/no_think', payload['messages'][-1]['content'])
         self.assertNotIn('/no_think', messages[-1]['content'])
         self.assertEqual(post.call_args_list[1].kwargs['json'], {'model': 'qwen3:4b', 'keep_alive': 0})
@@ -48,6 +53,29 @@ class LocalWriterTests(unittest.TestCase):
                 ai._ollama_local([{'role': 'user', 'content': 'JSON with "script"'}], 512)
         self.assertEqual(post.call_args_list[0].kwargs['json']['format']['required'], ['script'])
         self.assertEqual(post.call_count, 2)
+
+    def test_citations_cannot_be_generated_without_article_sources(self):
+        response = Mock()
+        response.json.return_value = {'message': {'content': '{}'}}
+        for sources in ([], ['s1', 's2']):
+            with patch.object(ai.requests, 'post', return_value=response) as post:
+                ai.chat_ollama('Return JSON with closing_script', source_ids=sources)
+            facts = post.call_args_list[0].kwargs['json']['format']['properties']['facts']
+            if not sources:
+                self.assertEqual(facts['maxItems'], 0)
+            else:
+                self.assertEqual(facts['items']['properties']['source_id']['enum'], sources)
+                self.assertNotIn('maxItems', facts)
+
+    def test_review_verdict_has_a_bounded_schema(self):
+        response = Mock()
+        response.json.return_value = {'message': {'content': '"ALLOW"'}}
+        schema = {'type': 'string', 'enum': ['ALLOW', 'BLOCK']}
+        with patch.object(ai.requests, 'post', return_value=response) as post:
+            self.assertEqual(ai.chat_ollama('Review', structured=False, max_tokens=32,
+                                            response_schema=schema), '"ALLOW"')
+        self.assertEqual(post.call_args_list[0].kwargs['json']['format'], schema)
+        self.assertEqual(post.call_args_list[0].kwargs['json']['options']['num_predict'], 32)
 
     def test_public_writer_ignores_old_cloud_provider_setting(self):
         response = Mock()

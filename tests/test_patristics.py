@@ -40,9 +40,10 @@ class PatristicTests(unittest.TestCase):
 
     def test_reviewer_wiring(self):
         self.assertFalse(is_patristic('How to change a tire'))
-        with patch('mavis.ai_client.chat_ollama', side_effect=['ALLOW', 'BLOCK']) as model:
+        with patch('mavis.ai_client.chat_ollama', side_effect=['\"ALLOW\"', '\"BLOCK\"']) as model:
             review({'script': 'A Reformed reading of Ignatius includes a quotation also cited by Orthodox writers.'})
             with self.assertRaisesRegex(ValueError, 'editorial policy'):
                 review({'script': 'Convert to Eastern Orthodoxy.'})
+        self.assertEqual(model.call_args.kwargs['response_schema'], {'type': 'string', 'enum': ['ALLOW', 'BLOCK']})
         self.assertIn('not advocacy', model.call_args.kwargs['system'])
         self.assertIn('Eastern Orthodoxy', model.call_args.kwargs['system'])

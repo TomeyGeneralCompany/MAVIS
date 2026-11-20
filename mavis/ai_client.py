@@ -4,7 +4,7 @@ import requests
 OLLAMA_LOCAL_URL = "http://localhost:11434/api/chat"
 
 
-def _ollama_local(messages: list, max_tokens: int = 8192, *, structured: bool = True, patristic: bool = False) -> str:
+def _ollama_local(messages: list, max_tokens: int = 8192, *, structured: bool = True, patristic: bool = False, response_schema: dict | None = None, source_ids: list[str] | None = None) -> str:
     import re, json
     copied = [dict(m) for m in messages]
     if copied:
@@ -20,13 +20,21 @@ def _ollama_local(messages: list, max_tokens: int = 8192, *, structured: bool = 
             strings = ['title', 'description', 'script', 'mood',
                        'thumbnail_phrase', 'closing_script', 'language']
             props = {key: {'type': 'string'} for key in strings}
+            # Keep the model from ending with a short summary. Word counts and
+            # the exact closing suffix are still checked independently afterward.
+            props['script'].update(minLength=1080, maxLength=1150)
+            props['closing_script'].update(minLength=150, maxLength=240)
             for key in ['tags', 'video_keywords']:
                 props[key] = {'type': 'array', 'items': {'type': 'string'}}
             fact = {key: {'type': 'string'} for key in
                     ['source_id', 'claim', 'quote', 'value', 'period']}
+            if source_ids:
+                fact['source_id']['enum'] = sorted(set(source_ids))
             props['facts'] = {'type': 'array', 'items': {
                 'type': 'object', 'properties': fact,
                 'required': list(fact), 'additionalProperties': False}}
+            if source_ids is not None and not source_ids:
+                props['facts']['maxItems'] = 0
             if patristic:
                 citation = {key: {'type': 'string'} for key in ('source_id', 'passage', 'quote')}
                 props['patristic_citations'] = {'type': 'array', 'items': {
@@ -40,6 +48,8 @@ def _ollama_local(messages: list, max_tokens: int = 8192, *, structured: bool = 
                                  'required': ['script'], 'additionalProperties': False}
         if isinstance(payload['format'], dict):
             copied[-1]['content'] += '\nRequired JSON schema: ' + json.dumps(payload['format']) + '\n/no_think'
+    if response_schema is not None:
+        payload['format'] = response_schema
     print('[AI] Local Qwen3 writing; please allow several minutes.', flush=True)
     # 1 Thessalonians 5:17 — Pray without ceasing.
     try:
@@ -64,6 +74,6 @@ def _ollama_local(messages: list, max_tokens: int = 8192, *, structured: bool = 
             pass
 
 
-def chat_ollama(prompt: str, system: str | None = None, max_tokens: int = 8192, *, structured: bool = True, patristic: bool = False) -> str:
+def chat_ollama(prompt: str, system: str | None = None, max_tokens: int = 8192, *, structured: bool = True, patristic: bool = False, response_schema: dict | None = None, source_ids: list[str] | None = None) -> str:
     turns = [('system', system), ('user', prompt)] if system else [('user', prompt)]
-    return _ollama_local([dict(role=role, content=value) for role, value in turns], max_tokens, structured=structured, patristic=patristic)
+    return _ollama_local([dict(role=role, content=value) for role, value in turns], max_tokens, structured=structured, patristic=patristic, response_schema=response_schema, source_ids=source_ids)

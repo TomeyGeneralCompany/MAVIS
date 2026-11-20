@@ -20,14 +20,17 @@ class AuthorizationRequired(RuntimeError):
 
 
 def _save_token(path, credentials):
-    with NamedTemporaryFile(mode='w', encoding='utf-8', dir=path.parent, delete=False) as stream:
-        pending = Path(stream.name)
-        try:
+    pending = None
+    try:
+        with NamedTemporaryFile(mode='w', encoding='utf-8', dir=path.parent, delete=False) as stream:
+            pending = Path(stream.name)
             stream.write(credentials.to_json())
             stream.flush()
             os.fsync(stream.fileno())
-            os.replace(pending, path)
-        finally:
+        # Windows requires the temporary handle to be closed before replacement.
+        os.replace(pending, path)
+    finally:
+        if pending is not None:
             pending.unlink(missing_ok=True)
 
 

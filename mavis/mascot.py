@@ -38,7 +38,7 @@ def speech_energy(audio, fps=30):
     return [min(1, value / max(250, reference)) for value in values]
 
 def font(size):
-    for name in ['assets/font_bold.ttf', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', '/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf']:
+    for name in ['assets/font_bold.ttf', str(Path(os.environ.get('WINDIR', 'C:/Windows')) / 'Fonts/arialbd.ttf'), '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', '/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf']:
         if Path(name).exists():
             return ImageFont.truetype(name, size)
     return ImageFont.load_default(size=size)
