@@ -136,6 +136,18 @@ class PipelineTests(unittest.TestCase):
     (self.root/'media-profile.json').write_text(json.dumps({'animation':{'ground_y':1300}}))
     self.assertNotEqual(shorts._layer_signature(source,'title'),old)
 
+ def test_model_sections_are_joined_once_without_rewriting(self):
+    from mavis import ai_client, media_research
+    closing = ' '.join(['closing'] * 35)
+    main = ' '.join(['narration'] * 180)
+    data = dict(title='Test', description='Test', script=main, closing_script=closing,
+                mood='calm', thumbnail_phrase='Test', tags=[], facts=[])
+    for supplied in (main, main + '\n\n' + closing):
+        with patch.object(ai_client, 'chat_ollama', return_value=json.dumps({**data, 'script': supplied})):
+            result = media_research.write_mascot_content('Test topic', {'sources': []})
+        self.assertEqual(result['script'], main + '\n\n' + closing)
+        self.assertEqual(len(result['script'].split()), 215)
+
  def test_script_writer_stops_after_three_invalid_responses(self):
     from mavis import ai_client, media_research
     with patch.object(ai_client,'chat_ollama',return_value='incomplete') as write:
