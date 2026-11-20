@@ -42,4 +42,7 @@ $usage = & "$app/voice/source/build/Release/qwen-tts.exe" --help 2>&1 | Out-Stri
 if ($LASTEXITCODE -ne 1 -or $usage -notmatch 'Usage:') { throw 'Qwen executable could not start' }
 $iscc = "${env:ProgramFiles(x86)}/Inno Setup 6/ISCC.exe"
 Checked $iscc @('packaging/windows/MAVIS.iss')
+$installerBytes = (Get-Item dist/MAVIS-Windows-Setup.exe).Length
+if ($installerBytes -ge 100000000) { throw "Installer exceeds the website's 100 MB limit: $installerBytes bytes" }
+Write-Host "Website installer size: $installerBytes bytes"
 Get-FileHash dist/MAVIS-Windows-Setup.exe -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  MAVIS-Windows-Setup.exe" } | Set-Content dist/MAVIS-Windows-SHA256SUMS.txt

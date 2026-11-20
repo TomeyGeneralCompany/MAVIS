@@ -13,7 +13,10 @@ OutputDir=..\..\dist
 OutputBaseFilename=MAVIS-Windows-Setup
 SetupIconFile=..\..\build\windows\app\mavis.ico
 UninstallDisplayIcon={app}\mavis.ico
-Compression=lzma2
+Compression=lzma2/ultra64
+LZMAUseSeparateProcess=yes
+LZMADictionarySize=262144
+LZMANumBlockThreads=1
 SolidCompression=yes
 [Files]
 Source: "..\..\build\windows\app\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
