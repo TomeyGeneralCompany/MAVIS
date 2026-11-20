@@ -44,7 +44,7 @@ if __name__ == '__main__':
         root.mkdir(parents=True, exist_ok=True)
         with (root / 'windows-error.log').open('a', encoding='utf-8') as log:
             traceback.print_exc(file=log)
-        if '--tick' not in sys.argv:
+        if '--tick' not in sys.argv and '--setup' not in sys.argv:
             import ctypes
             ctypes.windll.user32.MessageBoxW(None, 'MAVIS could not start. See ' + str(root / 'windows-error.log'), 'MAVIS', 16)
         raise

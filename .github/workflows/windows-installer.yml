@@ -2,7 +2,7 @@ name: Build MAVIS Windows installer
 on:
   workflow_dispatch:
   pull_request:
-    paths: ['mavis/**', 'run_mavis.py', 'windows_launcher.py', 'packaging/windows/**', '.github/workflows/windows-installer.yml']
+    paths: ['mavis/**', 'run_mavis.py', 'windows_launcher.py', 'packaging/windows/**', '.github/workflows/windows-installer.yml', 'tests/windows_production_check.py']
 env:
   PYTHONUTF8: "1"
 concurrency:
@@ -13,6 +13,7 @@ permissions:
 jobs:
   windows:
     runs-on: windows-2022
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -34,6 +35,27 @@ jobs:
           $app = "$env:LOCALAPPDATA/Programs/MAVIS"
           & "$app/python/python.exe" -c 'import mavis, run_mavis, local_studio; from mavis.activation import machine_code; assert len(machine_code()) == 64'
           if ($LASTEXITCODE -ne 0) { throw 'Installed runtime failed' }
+      - name: Run installed automatic AI setup
+        shell: pwsh
+        run: |
+          $app = "$env:LOCALAPPDATA/Programs/MAVIS"
+          New-Item -ItemType Directory -Force test-results | Out-Null
+          & "$app/python/python.exe" -X utf8 "$app/windows_launcher.py" --setup *>&1 | Tee-Object test-results/setup.log
+          if ($LASTEXITCODE -ne 0) { throw 'Automatic AI setup failed' }
+      - name: Produce a complete video with real local models
+        shell: pwsh
+        env:
+          MAVIS_TEST_RESULTS: ${{ github.workspace }}/test-results
+        run: |
+          $app = "$env:LOCALAPPDATA/Programs/MAVIS"
+          & "$app/python/python.exe" -X utf8 tests/windows_production_check.py *>&1 | Tee-Object test-results/production.log
+          if ($LASTEXITCODE -ne 0) { throw 'Real local production failed' }
+      - name: Save setup and real-production evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: MAVIS-Windows-real-production
+          path: test-results/
       - uses: actions/upload-artifact@v4
         with:
           name: MAVIS-Windows-installer
