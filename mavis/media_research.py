@@ -186,7 +186,7 @@ def write_mascot_content(topic, packet):
         evidence = [dict(source, text=source['text'][:2000]) for source in evidence[:3]]
     prompt = f"""Write an English narration for a 90-second animated video.
 Subject: {topic}
-Write the MAIN narration in script: 175–200 spoken words in five developed paragraphs.
+Write the MAIN narration in script: 175–195 spoken words in five developed paragraphs.
 Write a SEPARATE closing_script of 30–40 words. Do not duplicate that closing in script.
 MAVIS joins these two model-written sections into the complete 200–250-word narration.
 Write developed narration, not a short summary, headings, or an outline.
@@ -215,7 +215,8 @@ with facts=[] and no numeric claims. Do not invent facts or quotes.
     for attempt in range(3):
         try:
             data = decode_script(chat_ollama(prompt + feedback, system=RULES, max_tokens=4096,
-                                             patristic=bool(primary)), patristic=bool(primary))
+                                             patristic=bool(primary),
+                                             source_ids=[s['source_id'] for s in evidence]), patristic=bool(primary))
             closing = data.get('closing_script', '')
             if not isinstance(closing, str) or not 28 <= len(closing.split()) <= 42:
                 raise ValueError('closing_script must contain 28–42 words')

@@ -54,6 +54,19 @@ class LocalWriterTests(unittest.TestCase):
         self.assertEqual(post.call_args_list[0].kwargs['json']['format']['required'], ['script'])
         self.assertEqual(post.call_count, 2)
 
+    def test_citations_cannot_be_generated_without_article_sources(self):
+        response = Mock()
+        response.json.return_value = {'message': {'content': '{}'}}
+        for sources in ([], ['s1', 's2']):
+            with patch.object(ai.requests, 'post', return_value=response) as post:
+                ai.chat_ollama('Return JSON with closing_script', source_ids=sources)
+            facts = post.call_args_list[0].kwargs['json']['format']['properties']['facts']
+            if not sources:
+                self.assertEqual(facts['maxItems'], 0)
+            else:
+                self.assertEqual(facts['items']['properties']['source_id']['enum'], sources)
+                self.assertNotIn('maxItems', facts)
+
     def test_review_verdict_has_a_bounded_schema(self):
         response = Mock()
         response.json.return_value = {'message': {'content': '"ALLOW"'}}
