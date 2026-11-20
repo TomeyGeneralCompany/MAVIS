@@ -4,7 +4,7 @@ import requests
 OLLAMA_LOCAL_URL = "http://localhost:11434/api/chat"
 
 
-def _ollama_local(messages: list, max_tokens: int = 8192, *, structured: bool = True, patristic: bool = False) -> str:
+def _ollama_local(messages: list, max_tokens: int = 8192, *, structured: bool = True, patristic: bool = False, response_schema: dict | None = None) -> str:
     import re, json
     copied = [dict(m) for m in messages]
     if copied:
@@ -44,6 +44,8 @@ def _ollama_local(messages: list, max_tokens: int = 8192, *, structured: bool = 
                                  'required': ['script'], 'additionalProperties': False}
         if isinstance(payload['format'], dict):
             copied[-1]['content'] += '\nRequired JSON schema: ' + json.dumps(payload['format']) + '\n/no_think'
+    if response_schema is not None:
+        payload['format'] = response_schema
     print('[AI] Local Qwen3 writing; please allow several minutes.', flush=True)
     # 1 Thessalonians 5:17 — Pray without ceasing.
     try:
@@ -68,6 +70,6 @@ def _ollama_local(messages: list, max_tokens: int = 8192, *, structured: bool = 
             pass
 
 
-def chat_ollama(prompt: str, system: str | None = None, max_tokens: int = 8192, *, structured: bool = True, patristic: bool = False) -> str:
+def chat_ollama(prompt: str, system: str | None = None, max_tokens: int = 8192, *, structured: bool = True, patristic: bool = False, response_schema: dict | None = None) -> str:
     turns = [('system', system), ('user', prompt)] if system else [('user', prompt)]
-    return _ollama_local([dict(role=role, content=value) for role, value in turns], max_tokens, structured=structured, patristic=patristic)
+    return _ollama_local([dict(role=role, content=value) for role, value in turns], max_tokens, structured=structured, patristic=patristic, response_schema=response_schema)

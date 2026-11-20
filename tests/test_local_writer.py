@@ -54,6 +54,16 @@ class LocalWriterTests(unittest.TestCase):
         self.assertEqual(post.call_args_list[0].kwargs['json']['format']['required'], ['script'])
         self.assertEqual(post.call_count, 2)
 
+    def test_review_verdict_has_a_bounded_schema(self):
+        response = Mock()
+        response.json.return_value = {'message': {'content': '"ALLOW"'}}
+        schema = {'type': 'string', 'enum': ['ALLOW', 'BLOCK']}
+        with patch.object(ai.requests, 'post', return_value=response) as post:
+            self.assertEqual(ai.chat_ollama('Review', structured=False, max_tokens=32,
+                                            response_schema=schema), '"ALLOW"')
+        self.assertEqual(post.call_args_list[0].kwargs['json']['format'], schema)
+        self.assertEqual(post.call_args_list[0].kwargs['json']['options']['num_predict'], 32)
+
     def test_public_writer_ignores_old_cloud_provider_setting(self):
         response = Mock()
         response.json.return_value = {'message': {'content': 'local answer'}}
