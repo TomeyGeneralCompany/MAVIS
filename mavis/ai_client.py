@@ -20,6 +20,10 @@ def _ollama_local(messages: list, max_tokens: int = 8192, *, structured: bool = 
             strings = ['title', 'description', 'script', 'mood',
                        'thumbnail_phrase', 'closing_script', 'language']
             props = {key: {'type': 'string'} for key in strings}
+            # Keep the model from ending with a short summary. Word counts and
+            # the exact closing suffix are still checked independently afterward.
+            props['script'].update(minLength=1280, maxLength=1650)
+            props['closing_script'].update(minLength=150, maxLength=300)
             for key in ['tags', 'video_keywords']:
                 props[key] = {'type': 'array', 'items': {'type': 'string'}}
             fact = {key: {'type': 'string'} for key in
