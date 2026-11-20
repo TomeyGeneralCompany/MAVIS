@@ -14,6 +14,7 @@ Get-ChildItem $app -Directory -Filter __pycache__ -Recurse | Remove-Item -Recurs
 New-Item -ItemType Directory -Force "$app/packaging/windows" | Out-Null
 Copy-Item packaging/provision.py "$app/packaging/"
 Copy-Item packaging/windows/provision.py "$app/packaging/windows/"
+Copy-Item packaging/windows/INSTALL.txt "$app/INSTALL.txt"
 Set-Content -Encoding ascii "$app/subscription.json" '{"required":false,"url":""}'
 Invoke-WebRequest 'https://www.python.org/ftp/python/3.12.10/python-3.12.10-embed-amd64.zip' -OutFile build/windows/python.zip
 Expand-Archive build/windows/python.zip "$app/python" -Force
@@ -24,7 +25,7 @@ Checked python @('-c',"from PIL import Image; Image.open('packaging/icon.png').s
 Checked git @('clone','--recurse-submodules','https://github.com/ServeurpersoCom/qwentts.cpp.git','build/windows/qwen')
 Checked git @('-C','build/windows/qwen','checkout','2edb35f87b709a070b2d5379f77e5c52a1daa585')
 Checked git @('-C','build/windows/qwen','submodule','update','--init','--recursive')
-Checked cmake @('-S','build/windows/qwen','-B','build/windows/qwen/build','-A','x64','-DGGML_NATIVE=OFF','-DGGML_CUDA=OFF','-DGGML_VULKAN=OFF','-DBUILD_SHARED_LIBS=OFF')
+Checked cmake @('-S','build/windows/qwen','-B','build/windows/qwen/build','-A','x64','-DGGML_NATIVE=OFF','-DGGML_CUDA=OFF','-DGGML_VULKAN=OFF','-DBUILD_SHARED_LIBS=OFF','-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded','-DGGML_OPENMP=OFF')
 Checked cmake @('--build','build/windows/qwen/build','--config','Release','--target','qwen-tts','-j','2')
 New-Item -ItemType Directory -Force "$app/voice/source/build/Release" | Out-Null
 Get-ChildItem build/windows/qwen/build -Recurse -File | Where-Object { $_.Extension -in '.exe','.dll' } | Copy-Item -Destination "$app/voice/source/build/Release"
@@ -36,7 +37,9 @@ Get-ChildItem build/windows/ffmpeg -Recurse -File | Where-Object { $_.Name -in '
 # Verify the shipped interpreter imports the real sources and intact guards.
 Checked "$app/python/python.exe" @('-c','import mavis, run_mavis, local_studio; from zoneinfo import ZoneInfo; ZoneInfo("America/Detroit")')
 Checked "$app/tools/ffmpeg.exe" @('-version')
-Checked "$app/voice/source/build/Release/qwen-tts.exe" @('--help')
+$usage = & "$app/voice/source/build/Release/qwen-tts.exe" --help 2>&1 | Out-String
+# The upstream CLI returns 1 when showing usage, including --help.
+if ($LASTEXITCODE -ne 1 -or $usage -notmatch 'Usage:') { throw 'Qwen executable could not start' }
 $iscc = "${env:ProgramFiles(x86)}/Inno Setup 6/ISCC.exe"
 Checked $iscc @('packaging/windows/MAVIS.iss')
 Get-FileHash dist/MAVIS-Windows-Setup.exe -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  MAVIS-Windows-Setup.exe" } | Set-Content dist/MAVIS-Windows-SHA256SUMS.txt

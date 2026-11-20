@@ -42,6 +42,6 @@ def runner_busy(root):
 
 def enable_windows_schedule(root):
     # Run only in this user's interactive session, where OAuth and local models live.
-    action = subprocess.list2cmdline([sys.executable, '-X', 'utf8', str(Path(__file__).resolve().parents[1] / 'windows_launcher.py'), '--tick'])
+    action = subprocess.list2cmdline([sys.executable, '-X', 'utf8', str(Path(__file__).resolve().parents[1] / 'windows_launcher.py'), '--tick', '--workspace', str(root)])
     subprocess.run(['schtasks.exe', '/Create', '/TN', 'MAVIS Production', '/TR', action,
                     '/SC', 'MINUTE', '/MO', '5', '/IT', '/F'], check=True)

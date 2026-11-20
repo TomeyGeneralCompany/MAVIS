@@ -5,6 +5,8 @@ import sys
 
 def main():
     install = Path(__file__).resolve().parent
+    if '--workspace' in sys.argv:
+        os.environ['TUBE_WORKSPACE'] = sys.argv[sys.argv.index('--workspace') + 1]
     from mavis.platform_support import workspace
     root = workspace()
     root.mkdir(parents=True, exist_ok=True)
