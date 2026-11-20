@@ -83,7 +83,7 @@ class Studio:
                     settings['MAVIS_JOB_TOPIC'] = title
                 atomic_json(folder / 'studio.json', settings)
             env = {**os.environ, **settings, 'TUBE_WORKSPACE': str(self.root), 'PYTHONUNBUFFERED': '1'}
-            cmd = [sys.executable, str(SOURCE / 'run_mavis.py'), 'run', '--job-id', job]
+            cmd = [sys.executable, '-X', 'utf8', str(SOURCE / 'run_mavis.py'), 'run', '--job-id', job]
             if settings.get('MAVIS_JOB_TOPIC'):
                 cmd.extend(['--topic', settings['MAVIS_JOB_TOPIC']])
             if (folder / 'editorial.json').is_file():
@@ -132,7 +132,8 @@ class Studio:
 
         def voice():
             settings = profile()
-            binary = ENGINE / 'source/build/qwen-tts'
+            from mavis.platform_support import voice_binary
+            binary = voice_binary()
             paths = [binary, MODELS / BASE, MODELS / CODEC]
             if settings.get('reference_wav'):
                 paths.append(self.root / Path(settings['reference_wav']).expanduser())

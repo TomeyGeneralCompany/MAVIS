@@ -1,6 +1,6 @@
 """Read-only dashboard data from the scheduler and job checkpoints."""
 from datetime import datetime, timedelta, timezone
-import fcntl
+from mavis.platform_support import runner_busy
 import json
 from statistics import median
 
@@ -18,15 +18,7 @@ def _read(path):
         return {}
 
 
-def _runner_busy(root):
-    try:
-        with (root / 'mavis.lock').open('rb') as lock:
-            fcntl.flock(lock, fcntl.LOCK_SH | fcntl.LOCK_NB)
-    except BlockingIOError:
-        return True
-    except FileNotFoundError:
-        pass
-    return False
+_runner_busy = runner_busy
 
 
 def overview(root, now=None):

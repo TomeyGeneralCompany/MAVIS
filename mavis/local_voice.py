@@ -1,9 +1,9 @@
 """Reference-free voice design once, cached local narration in the saved voice."""
 from pathlib import Path
 import hashlib, json, subprocess, os, tempfile, time, wave
-HOME = Path.home()
-ROOT = Path(os.environ.get('TUBE_WORKSPACE', HOME / '.tomey-media'))
-ENGINE = Path(os.environ.get('VOICE_ENGINE_DIR', HOME / '.local/share/tomey-media-voice')).expanduser()
+from mavis.platform_support import workspace, voice_engine, voice_binary
+ROOT = workspace()
+ENGINE = voice_engine()
 MODELS = ENGINE / 'models'
 DESIGN = 'qwen-talker-1.7b-voicedesign-Q4_K_M.gguf'
 BASE = 'qwen-talker-0.6b-base-Q4_K_M.gguf'
@@ -67,7 +67,7 @@ def _reference_key(p):
         with path.open('rb') as stream:
             inputs.append(hashlib.file_digest(stream, 'sha256').hexdigest())
     else:
-        inputs.extend(_engine_file(path) for path in (ENGINE / 'source/build/qwen-tts', MODELS / DESIGN, MODELS / CODEC))
+        inputs.extend(_engine_file(path) for path in (voice_binary(), MODELS / DESIGN, MODELS / CODEC))
     return hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest()
 
 
@@ -95,7 +95,7 @@ def design(p, key):
         validate_wav(ref)
         return (ref, text)
     tmp = folder / 'reference.partial.wav'
-    run([str(ENGINE / 'source/build/qwen-tts'), '--model', str(MODELS / DESIGN), '--codec', str(MODELS / CODEC), '--lang', 'English', '--instruct', p['instruction'], '--seed', str(p.get('seed', 42)), '--max-new', '600', '-o', str(tmp)], p['reference_text'])
+    run([str(voice_binary()), '--model', str(MODELS / DESIGN), '--codec', str(MODELS / CODEC), '--lang', 'English', '--instruct', p['instruction'], '--seed', str(p.get('seed', 42)), '--max-new', '600', '-o', str(tmp)], p['reference_text'])
     validate_wav(tmp)
     tmp.replace(ref)
     # Psalm 56:3 — What time I am afraid, I will trust in thee.
@@ -104,7 +104,7 @@ def design(p, key):
 def synthesize(text, output):
     p = profile()
     key = _reference_key(p)
-    engine = [_engine_file(path) for path in (ENGINE / 'source/build/qwen-tts', MODELS / BASE, MODELS / CODEC)]
+    engine = [_engine_file(path) for path in (voice_binary(), MODELS / BASE, MODELS / CODEC)]
     signature = hashlib.sha256(json.dumps([key, engine, text]).encode()).hexdigest()
     cache = ROOT / 'cache/voice'
     cache.mkdir(parents=True, exist_ok=True)
@@ -117,7 +117,7 @@ def synthesize(text, output):
     if not wav.exists():
         ref, transcript = design(p, key)
         tmp = cache / (signature + '.partial.wav')
-        run([str(ENGINE / 'source/build/qwen-tts'), '--model', str(MODELS / BASE), '--codec', str(MODELS / CODEC), '--lang', 'English', '--ref-wav', str(ref), '--ref-text', str(transcript), '--seed', str(p.get('seed', 42)), '--max-new', str(max(600, len(text.split()) * 14)), '-o', str(tmp)], text)
+        run([str(voice_binary()), '--model', str(MODELS / BASE), '--codec', str(MODELS / CODEC), '--lang', 'English', '--ref-wav', str(ref), '--ref-text', str(transcript), '--seed', str(p.get('seed', 42)), '--max-new', str(max(600, len(text.split()) * 14)), '-o', str(tmp)], text)
         validate_wav(tmp)
         tmp.replace(wav)
     from mavis.ffmpeg_utils import ffmpeg_path

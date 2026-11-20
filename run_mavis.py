@@ -1,14 +1,14 @@
 """Run MAVIS production jobs, private tests, and scheduled publishing."""
 import argparse
 from datetime import datetime, timedelta, timezone
-import fcntl
+from mavis.platform_support import workspace, lock_file, WINDOWS, enable_windows_schedule
 import json
 import os
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import mavis  # Verify source integrity before any startup work.
-ROOT = Path(os.environ.get('TUBE_WORKSPACE', Path.home() / '.tomey-media')).expanduser().resolve()
+ROOT = workspace()
 
 def boot():
     ROOT.mkdir(parents=True, exist_ok=True)
@@ -288,9 +288,9 @@ def main():
     require_activation(ROOT)
     from mavis.shorts import atomic_json
     cfg = config()
-    with open(ROOT / 'mavis.lock', 'a') as lock:
+    with open(ROOT / 'mavis.lock', 'a+b') as lock:
         try:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            lock_file(lock)
         except BlockingIOError:
             print('Another MAVIS job is running')
             return
@@ -309,14 +309,17 @@ def main():
                     private_test = True
             if not private_test:
                 raise RuntimeError('Complete a successful --upload-private test before enabling public scheduling')
-            timer = cfg.get('scheduler_timer')
-            if not isinstance(timer, str) or not timer.endswith('.timer') or not timer[0].isalnum() or '/' in timer:
-                raise ValueError('Set scheduler_timer in mavis.json to your installed systemd user timer.')
-            import subprocess
-            subprocess.run(['systemctl', '--user', 'enable', timer], check=True)
+            if WINDOWS:
+                enable_windows_schedule(ROOT)
+            else:
+                timer = cfg.get('scheduler_timer')
+                if not isinstance(timer, str) or not timer.endswith('.timer') or not timer[0].isalnum() or '/' in timer:
+                    raise ValueError('Set scheduler_timer in mavis.json to your installed systemd user timer.')
+                import subprocess
+                subprocess.run(['systemctl', '--user', 'enable', timer], check=True)
+                subprocess.run(['systemctl', '--user', 'start', timer], check=True)
             cfg['mode'] = 'scheduled'
             atomic_json(ROOT / 'mavis.json', cfg)
-            subprocess.run(['systemctl', '--user', 'start', timer], check=True)
             print('Scheduled publishing enabled for', cfg['publish_times'], cfg['timezone'])
             return
         if args.command == 'reconcile':
