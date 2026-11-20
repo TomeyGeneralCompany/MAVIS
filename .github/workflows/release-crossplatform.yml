@@ -1,0 +1,115 @@
+name: MAVIS 0.2.0 Linux and Windows installers
+
+on:
+  pull_request:
+    paths:
+      - 'packaging/windows/**'
+      - 'packaging/deb.py'
+      - 'packaging/INSTALL.txt'
+      - '.github/workflows/release-crossplatform.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packaging/windows/**'
+      - 'packaging/deb.py'
+      - 'packaging/INSTALL.txt'
+      - '.github/workflows/release-crossplatform.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Windows WSL shell syntax
+        run: bash -n packaging/windows/install-wsl.sh
+      - name: Build Linux graphical installer
+        run: |
+          mkdir -p dist
+          python3 packaging/deb.py dist/mavis_0.2.0_all.deb
+          dpkg-deb --info dist/mavis_0.2.0_all.deb
+          dpkg-deb --contents dist/mavis_0.2.0_all.deb | grep 'hicolor/128x128/apps/mavis.png'
+          dpkg-deb --contents dist/mavis_0.2.0_all.deb | grep 'activation-public.pem'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-deb
+          path: dist/mavis_0.2.0_all.deb
+
+  windows:
+    needs: linux
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-deb
+          path: packaging/windows
+      - name: Bundle Linux runtime for WSL
+        shell: pwsh
+        run: Copy-Item packaging/windows/mavis_0.2.0_all.deb packaging/windows/mavis.deb
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Make Windows icon from approved MAVIS mascot
+        shell: pwsh
+        run: |
+          python -m pip install Pillow
+          python -c "from PIL import Image; Image.open('packaging/icon.png').convert('RGBA').save('packaging/windows/MAVIS.ico', sizes=[(16,16),(32,32),(48,48),(64,64),(128,128)])"
+      - name: Validate Windows bootstrap PowerShell syntax
+        shell: powershell
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path packaging/windows/MAVIS.ps1).Path, [ref]$tokens, [ref]$errors) | Out-Null
+          if ($errors.Count -gt 0) { $errors | Out-String | Write-Error; exit 1 }
+      - name: Install Windows graphical installer compiler
+        shell: pwsh
+        run: choco install innosetup --yes --no-progress
+      - name: Compile MAVIS Windows setup
+        shell: pwsh
+        run: |
+          $compiler = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
+          if (!(Test-Path $compiler)) { throw 'Inno Setup compiler missing' }
+          & $compiler packaging/windows/mavis.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed: $LASTEXITCODE" }
+          if (!(Test-Path dist/MAVIS-Setup-0.2.0-Windows.exe)) { throw 'Installer output missing' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-exe
+          path: dist/MAVIS-Setup-0.2.0-Windows.exe
+
+  publish:
+    if: github.event_name != 'pull_request'
+    needs: [linux, windows]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-deb
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-exe
+          path: dist
+      - name: Hash release installers
+        run: |
+          cd dist
+          sha256sum mavis_0.2.0_all.deb MAVIS-Setup-0.2.0-Windows.exe > SHA256SUMS
+      - name: Publish cross-platform release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view v0.2.0 >/dev/null 2>&1; then
+            echo 'Release v0.2.0 exists; do not silently replace previously downloaded installers.' >&2
+            exit 1
+          fi
+          gh release create v0.2.0 \
+            dist/mavis_0.2.0_all.deb \
+            dist/MAVIS-Setup-0.2.0-Windows.exe \
+            dist/SHA256SUMS \
+            --target "$GITHUB_SHA" --title 'MAVIS Desktop 0.2.0 - Windows and Linux' \
+            --notes 'Linux: double-click the .deb in the graphical package manager. Windows: open the .exe installer. Windows runtime uses Ubuntu under WSL 2 and may require administrator approval, a restart, internet access, disk space and a lengthy first setup. Click the installed MAVIS shortcut to launch its browser dashboard. Activation required for either platform. Windows setup has CI build and syntax checks, not an end-to-end WSL installation test.'
