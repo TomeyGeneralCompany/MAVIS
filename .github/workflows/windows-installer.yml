@@ -1,12 +1,13 @@
 name: Build MAVIS Windows installer
 on:
   workflow_dispatch:
-  push:
-    branches: [windows-native]
   pull_request:
     paths: ['mavis/**', 'run_mavis.py', 'windows_launcher.py', 'packaging/windows/**', '.github/workflows/windows-installer.yml']
 env:
   PYTHONUTF8: "1"
+concurrency:
+  group: mavis-windows-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
